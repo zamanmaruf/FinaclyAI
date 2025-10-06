@@ -1,0 +1,12 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#gradient)"/>
+  <text x="600" y="315" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700" text-anchor="middle" fill="white">Finacly AI</text>
+  <text x="600" y="375" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="400" text-anchor="middle" fill="white">Automated Reconciliation for Stripe, Banks & QuickBooks</text>
+</svg>

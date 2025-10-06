@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Account identification
+  name        String
+  description String?
+  isActive    Boolean @default(true)
+
+  // External system references
+  stripeCustomerId String?
+  qboCustomerId    String?
+  plaidItemId      String?
+
+  // Relationships
+  bankTransactions BankTransaction[]
+  payoutItems      PayoutItem[]
+  qboEntries       QboEntry[]
+  matches          Match[]
+
+  @@map("accounts")
+}
+
+model BankTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Transaction details
+  accountId       String
+  externalId      String    @unique
+  description     String
+  amount          BigInt // Minor units (cents)
+  currency        String    @db.VarChar(3) // ISO-4217
+  transactionDate DateTime
+  postedDate      DateTime?
+  reference       String?
+
+  // Bank details
+  bankName      String?
+  accountNumber String? // Last 4 digits only
+  routingNumber String?
+
+  // Relationships
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  matches Match[]
+
+  @@index([accountId, transactionDate])
+  @@index([amount, currency])
+  @@index([externalId])
+  @@map("bank_transactions")
+}
+
+model PayoutItem {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Item details
+  accountId      String
+  payoutId       String
+  stripeChargeId String
+  amount         BigInt // Minor units (cents)
+  currency       String  @db.VarChar(3) // ISO-4217
+  description    String?
+
+  // Relationships
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, payoutId])
+  @@index([stripeChargeId])
+  @@map("payout_items")
+}
+
+model QboEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Entry details
+  accountId   String
+  qboEntryId  String   @unique
+  amount      BigInt // Minor units (cents)
+  currency    String   @db.VarChar(3) // ISO-4217
+  description String
+  entryDate   DateTime
+  entryType   String // "income", "expense", "transfer"
+  reference   String?
+
+  // Relationships
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  matches Match[]
+
+  @@index([accountId, entryDate])
+  @@index([amount, currency])
+  @@index([qboEntryId])
+  @@map("qbo_entries")
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Match details
+  accountId  String
+  status     String // "pending", "confirmed", "rejected", "auto_matched"
+  confidence Float? // 0.0 to 1.0 for auto-matching confidence
+  notes      String?
+
+  // Matched entities
+  bankTransactionId String?
+  qboEntryId        String?
+
+  // Relationships
+  account         Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  bankTransaction BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
+  qboEntry        QboEntry?        @relation(fields: [qboEntryId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, status])
+  @@index([status, createdAt])
+  @@map("matches")
+}
+
+model StripeAccount {
+  id              String   @id @db.VarChar(64) // acct_*
+  defaultCurrency String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  charges    StripeCharge[]
+  payouts    StripePayout[]
+  balanceTxs StripeBalanceTx[]
+}
+
+model StripeCharge {
+  id            String        @id @db.VarChar(64) // ch_*
+  accountId     String
+  account       StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  customerId    String?       @db.VarChar(64)
+  paymentIntent String?       @db.VarChar(64)
+  amount        BigInt
+  currency      String        @db.VarChar(8)
+  fee           BigInt? // sum of fees from balance tx
+  net           BigInt? // net from balance tx
+  status        String        @db.VarChar(32)
+  createdAtUnix Int
+  createdAt     DateTime
+  description   String?       @db.Text
+  payoutId      String?       @db.VarChar(64) // linked payout (derived)
+  metadataJson  Json?
+  updatedAt     DateTime      @updatedAt
+
+  payout StripePayout? @relation("PayoutCharges", fields: [payoutId], references: [id])
+
+  @@index([accountId])
+  @@index([payoutId])
+  @@index([createdAt])
+}
+
+model StripePayout {
+  id                  String        @id @db.VarChar(64) // po_*
+  accountId           String
+  account             StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  amount              BigInt
+  currency            String        @db.VarChar(8)
+  status              String        @db.VarChar(32)
+  arrivalDateUnix     Int
+  arrivalDate         DateTime
+  description         String?       @db.Text
+  statementDescriptor String?       @db.VarChar(255)
+  metadataJson        Json?
+  createdAtUnix       Int
+  createdAt           DateTime
+  updatedAt           DateTime      @updatedAt
+
+  charges StripeCharge[] @relation("PayoutCharges")
+
+  @@index([accountId])
+  @@index([arrivalDate])
+}
+
+model StripeBalanceTx {
+  id                String        @id @db.VarChar(64) // txn_*
+  accountId         String
+  account           StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type              String        @db.VarChar(64)
+  amount            BigInt
+  currency          String        @db.VarChar(8)
+  fee               BigInt?
+  net               BigInt?
+  availableOnUnix   Int?
+  createdUnix       Int
+  createdAt         DateTime
+  reportingCategory String?       @db.VarChar(64)
+  sourceId          String?       @db.VarChar(64) // ch_*, pi_*, fee_*, adj_*, po_*
+  payoutId          String?       @db.VarChar(64)
+  rawJson           Json?
+  updatedAt         DateTime      @updatedAt
+
+  @@index([accountId])
+  @@index([payoutId])
+  @@index([sourceId])
+  @@index([createdAt])
+}
+
+model StripeException {
+  id         String    @id @default(cuid())
+  kind       String    @db.VarChar(64) // e.g., MULTI_CURRENCY_PAYOUT, CHARGE_NO_PAYOUT, UNKNOWN_BALANCE_TX
+  refId      String?   @db.VarChar(64) // ch_*, po_*, txn_*
+  message    String    @db.Text
+  data       Json?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([kind])
+  @@index([refId])
+}
+
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  source    String?  // 'hero' | 'footer' etc.
+
+  @@map("waitlist_signups")
+}

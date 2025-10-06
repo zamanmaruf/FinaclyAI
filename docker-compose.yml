@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  finacly-db:
+    image: postgres:16
+    container_name: finacly-db
+    environment:
+      POSTGRES_USER: finacly
+      POSTGRES_PASSWORD: finacly
+      POSTGRES_DB: finacly
+    ports:
+      - "5433:5432"
+    volumes:
+      - finacly_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finacly -d finacly"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  finacly_data:
