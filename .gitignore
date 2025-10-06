@@ -68,3 +68,4 @@ Temporary Items
 
 # Docker
 .dockerignore
+.env.backup
