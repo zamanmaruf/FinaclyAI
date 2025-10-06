@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,52 +8,40 @@ datasource db {
 }
 
 model Account {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Account identification
-  name        String
-  description String?
-  isActive    Boolean @default(true)
-
-  // External system references
+  id               String            @id @default(cuid())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  name             String
+  description      String?
+  isActive         Boolean           @default(true)
   stripeCustomerId String?
   qboCustomerId    String?
   plaidItemId      String?
-
-  // Relationships
   bankTransactions BankTransaction[]
+  matches          Match[]
   payoutItems      PayoutItem[]
   qboEntries       QboEntry[]
-  matches          Match[]
 
   @@map("accounts")
 }
 
 model BankTransaction {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Transaction details
+  id              String    @id @default(cuid())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   accountId       String
   externalId      String    @unique
   description     String
-  amount          BigInt // Minor units (cents)
-  currency        String    @db.VarChar(3) // ISO-4217
+  amount          BigInt
+  currency        String    @db.VarChar(3)
   transactionDate DateTime
   postedDate      DateTime?
   reference       String?
-
-  // Bank details
-  bankName      String?
-  accountNumber String? // Last 4 digits only
-  routingNumber String?
-
-  // Relationships
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  matches Match[]
+  bankName        String?
+  accountNumber   String?
+  routingNumber   String?
+  account         Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  matches         Match[]
 
   @@index([accountId, transactionDate])
   @@index([amount, currency])
@@ -65,20 +50,16 @@ model BankTransaction {
 }
 
 model PayoutItem {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Item details
+  id             String   @id @default(cuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   accountId      String
   payoutId       String
   stripeChargeId String
-  amount         BigInt // Minor units (cents)
-  currency       String  @db.VarChar(3) // ISO-4217
+  amount         BigInt
+  currency       String   @db.VarChar(3)
   description    String?
-
-  // Relationships
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, payoutId])
   @@index([stripeChargeId])
@@ -86,23 +67,19 @@ model PayoutItem {
 }
 
 model QboEntry {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Entry details
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
   accountId   String
   qboEntryId  String   @unique
-  amount      BigInt // Minor units (cents)
-  currency    String   @db.VarChar(3) // ISO-4217
+  amount      BigInt
+  currency    String   @db.VarChar(3)
   description String
   entryDate   DateTime
-  entryType   String // "income", "expense", "transfer"
+  entryType   String
   reference   String?
-
-  // Relationships
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  matches Match[]
+  matches     Match[]
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId, entryDate])
   @@index([amount, currency])
@@ -111,24 +88,18 @@ model QboEntry {
 }
 
 model Match {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Match details
-  accountId  String
-  status     String // "pending", "confirmed", "rejected", "auto_matched"
-  confidence Float? // 0.0 to 1.0 for auto-matching confidence
-  notes      String?
-
-  // Matched entities
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  accountId         String
+  status            String
+  confidence        Float?
+  notes             String?
   bankTransactionId String?
   qboEntryId        String?
-
-  // Relationships
-  account         Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  bankTransaction BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
-  qboEntry        QboEntry?        @relation(fields: [qboEntryId], references: [id], onDelete: SetNull)
+  account           Account          @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  bankTransaction   BankTransaction? @relation(fields: [bankTransactionId], references: [id])
+  qboEntry          QboEntry?        @relation(fields: [qboEntryId], references: [id])
 
   @@index([accountId, status])
   @@index([status, createdAt])
@@ -136,35 +107,33 @@ model Match {
 }
 
 model StripeAccount {
-  id              String   @id @db.VarChar(64) // acct_*
+  id              String            @id @db.VarChar(64)
   defaultCurrency String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  charges    StripeCharge[]
-  payouts    StripePayout[]
-  balanceTxs StripeBalanceTx[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  balanceTxs      StripeBalanceTx[]
+  charges         StripeCharge[]
+  payouts         StripePayout[]
 }
 
 model StripeCharge {
-  id            String        @id @db.VarChar(64) // ch_*
+  id            String        @id @db.VarChar(64)
   accountId     String
-  account       StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   customerId    String?       @db.VarChar(64)
   paymentIntent String?       @db.VarChar(64)
   amount        BigInt
   currency      String        @db.VarChar(8)
-  fee           BigInt? // sum of fees from balance tx
-  net           BigInt? // net from balance tx
+  fee           BigInt?
+  net           BigInt?
   status        String        @db.VarChar(32)
   createdAtUnix Int
   createdAt     DateTime
-  description   String?       @db.Text
-  payoutId      String?       @db.VarChar(64) // linked payout (derived)
+  description   String?
+  payoutId      String?       @db.VarChar(64)
   metadataJson  Json?
   updatedAt     DateTime      @updatedAt
-
-  payout StripePayout? @relation("PayoutCharges", fields: [payoutId], references: [id])
+  account       StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  payout        StripePayout? @relation("PayoutCharges", fields: [payoutId], references: [id])
 
   @@index([accountId])
   @@index([payoutId])
@@ -172,31 +141,29 @@ model StripeCharge {
 }
 
 model StripePayout {
-  id                  String        @id @db.VarChar(64) // po_*
+  id                  String         @id @db.VarChar(64)
   accountId           String
-  account             StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   amount              BigInt
-  currency            String        @db.VarChar(8)
-  status              String        @db.VarChar(32)
+  currency            String         @db.VarChar(8)
+  status              String         @db.VarChar(32)
   arrivalDateUnix     Int
   arrivalDate         DateTime
-  description         String?       @db.Text
-  statementDescriptor String?       @db.VarChar(255)
+  description         String?
+  statementDescriptor String?        @db.VarChar(255)
   metadataJson        Json?
   createdAtUnix       Int
   createdAt           DateTime
-  updatedAt           DateTime      @updatedAt
-
-  charges StripeCharge[] @relation("PayoutCharges")
+  updatedAt           DateTime       @updatedAt
+  charges             StripeCharge[] @relation("PayoutCharges")
+  account             StripeAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
   @@index([arrivalDate])
 }
 
 model StripeBalanceTx {
-  id                String        @id @db.VarChar(64) // txn_*
+  id                String        @id @db.VarChar(64)
   accountId         String
-  account           StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   type              String        @db.VarChar(64)
   amount            BigInt
   currency          String        @db.VarChar(8)
@@ -206,10 +173,11 @@ model StripeBalanceTx {
   createdUnix       Int
   createdAt         DateTime
   reportingCategory String?       @db.VarChar(64)
-  sourceId          String?       @db.VarChar(64) // ch_*, pi_*, fee_*, adj_*, po_*
+  sourceId          String?       @db.VarChar(64)
   payoutId          String?       @db.VarChar(64)
   rawJson           Json?
   updatedAt         DateTime      @updatedAt
+  account           StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([accountId])
   @@index([payoutId])
@@ -219,9 +187,9 @@ model StripeBalanceTx {
 
 model StripeException {
   id         String    @id @default(cuid())
-  kind       String    @db.VarChar(64) // e.g., MULTI_CURRENCY_PAYOUT, CHARGE_NO_PAYOUT, UNKNOWN_BALANCE_TX
-  refId      String?   @db.VarChar(64) // ch_*, po_*, txn_*
-  message    String    @db.Text
+  kind       String    @db.VarChar(64)
+  refId      String?   @db.VarChar(64)
+  message    String
   data       Json?
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
@@ -234,7 +202,67 @@ model WaitlistSignup {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
-  source    String?  // 'hero' | 'footer' etc.
+  source    String?
 
   @@map("waitlist_signups")
+}
+
+model QboCompany {
+  id        String       @id
+  name      String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  invoices  QboInvoice[]
+  payments  QboPayment[]
+  tokens    QboToken?
+
+  @@map("qbo_companies")
+}
+
+model QboToken {
+  id           String     @id @default(cuid())
+  realmId      String     @unique
+  accessToken  String
+  refreshToken String
+  tokenType    String
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  company      QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@map("qbo_tokens")
+}
+
+model QboInvoice {
+  id          String     @id
+  realmId     String
+  docNumber   String?
+  customerRef String?
+  total       BigInt
+  balance     BigInt
+  currency    String     @db.VarChar(8)
+  txnDate     DateTime
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, txnDate])
+  @@index([realmId, balance])
+  @@map("qbo_invoices")
+}
+
+model QboPayment {
+  id          String     @id
+  realmId     String
+  customerRef String?
+  total       BigInt
+  currency    String     @db.VarChar(8)
+  txnDate     DateTime
+  appliedTo   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, txnDate])
+  @@map("qbo_payments")
 }

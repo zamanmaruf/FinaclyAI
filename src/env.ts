@@ -17,6 +17,11 @@ const envSchema = z.object({
   QBO_CLIENT_SECRET: z.string().min(1),
   QBO_REDIRECT_URI: z.string().url(),
   INTUIT_ENV: z.enum(['development', 'production']),
+  QBO_MINOR_VERSION: z.string().optional().default('75'),
+  
+  // Optional QBO configuration
+  QBO_SANDBOX_BASE_URL: z.string().url().optional().default('https://sandbox-quickbooks.api.intuit.com/v3/company'),
+  QBO_PRODUCTION_BASE_URL: z.string().url().optional().default('https://quickbooks.api.intuit.com/v3/company'),
   
   // Plaid
   PLAID_CLIENT_ID: z.string().min(1),

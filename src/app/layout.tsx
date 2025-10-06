@@ -2,6 +2,9 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 
+// QBO startup log
+console.log('QBO ready: visit /api/qbo/connect to authorize');
+
 export const metadata: Metadata = {
   title: "Finacly AI — Automated Reconciliation for Stripe, Banks & QuickBooks",
   description: "Finacly AI auto-matches payouts, charges, and accounting entries so month-end takes minutes, not days. Bank-level security • SOC 2 in progress • Built for accountants.",

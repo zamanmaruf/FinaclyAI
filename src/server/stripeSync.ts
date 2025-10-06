@@ -1,216 +1,307 @@
-import { stripe } from "./stripeClient";
-import { prisma } from "./db";
-import type Stripe from "stripe";
+import { stripe } from './stripeClient';
+import { db } from './db';
+import { toMinorUnits } from './money';
 
-const toDate = (unix: number) => new Date(unix * 1000);
-
-async function ensureAccount(acctId: string) {
-  if (acctId === "acct_1") {
-    // For platform account, create a placeholder
-    await prisma.stripeAccount.upsert({
-      where: { id: "acct_1" },
-      update: { defaultCurrency: "usd" },
-      create: { id: "acct_1", defaultCurrency: "usd" },
-    });
-    return "acct_1";
-  }
-  
-  const acct = await stripe.accounts.retrieve(acctId);
-  await prisma.stripeAccount.upsert({
-    where: { id: acct.id },
-    update: { defaultCurrency: acct.default_currency || "usd" },
-    create: { id: acct.id, defaultCurrency: acct.default_currency || "usd" },
-  });
-  return acct.id;
+interface SyncResult {
+  charges: number;
+  payouts: number;
+  balanceTxs: number;
+  exceptions: number;
 }
 
-export async function syncCharges(params: {
-  accountId: string;
-  sinceUnix?: number;
-}) {
-  const { accountId, sinceUnix } = params;
-  await ensureAccount(accountId);
+export async function syncCharges({ days }: { days: number }): Promise<number> {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const startTimestamp = Math.floor(startDate.getTime() / 1000);
 
-  const iter = stripe.charges.list({
-    limit: 100,
-    ...(sinceUnix ? { created: { gte: sinceUnix } } : {}),
-    expand: ["data.balance_transaction"],
-  });
+  let allCharges: any[] = [];
+  let hasMore = true;
+  let startingAfter: string | undefined;
 
-  for await (const ch of iter) {
-    const bt = ch.balance_transaction as unknown as Stripe.BalanceTransaction | null;
-    const fee = bt?.fee != null ? BigInt(bt.fee) : null;
-    const net = bt?.net != null ? BigInt(bt.net) : null;
-
-    await prisma.stripeCharge.upsert({
-      where: { id: ch.id },
-      update: {
-        accountId,
-        customerId: ch.customer ? String(ch.customer) : null,
-        paymentIntent: ch.payment_intent ? String(ch.payment_intent) : null,
-        amount: BigInt(ch.amount),
-        currency: ch.currency.toUpperCase(),
-        fee,
-        net,
-        status: ch.status,
-        createdAtUnix: ch.created,
-        createdAt: toDate(ch.created),
-        description: ch.description ?? null,
-        metadataJson: ch.metadata as any,
-      },
-      create: {
-        id: ch.id,
-        accountId,
-        customerId: ch.customer ? String(ch.customer) : null,
-        paymentIntent: ch.payment_intent ? String(ch.payment_intent) : null,
-        amount: BigInt(ch.amount),
-        currency: ch.currency.toUpperCase(),
-        fee,
-        net,
-        status: ch.status,
-        createdAtUnix: ch.created,
-        createdAt: toDate(ch.created),
-        description: ch.description ?? null,
-        metadataJson: ch.metadata as any,
-      },
-    });
-  }
-}
-
-export async function syncPayouts(params: {
-  accountId: string;
-  sinceUnix?: number;
-}) {
-  const { accountId, sinceUnix } = params;
-  await ensureAccount(accountId);
-
-  const iter = stripe.payouts.list({
-    limit: 100,
-    ...(sinceUnix ? { created: { gte: sinceUnix } } : {}),
-    expand: ["data.destination"],
-  });
-
-  for await (const po of iter) {
-    await prisma.stripePayout.upsert({
-      where: { id: po.id },
-      update: {
-        accountId,
-        amount: BigInt(po.amount),
-        currency: po.currency.toUpperCase(),
-        status: po.status,
-        arrivalDateUnix: po.arrival_date,
-        arrivalDate: toDate(po.arrival_date),
-        description: po.description ?? null,
-        statementDescriptor: po.statement_descriptor ?? null,
-        metadataJson: po.metadata as any,
-        createdAtUnix: po.created,
-        createdAt: toDate(po.created),
-      },
-      create: {
-        id: po.id,
-        accountId,
-        amount: BigInt(po.amount),
-        currency: po.currency.toUpperCase(),
-        status: po.status,
-        arrivalDateUnix: po.arrival_date,
-        arrivalDate: toDate(po.arrival_date),
-        description: po.description ?? null,
-        statementDescriptor: po.statement_descriptor ?? null,
-        metadataJson: po.metadata as any,
-        createdAtUnix: po.created,
-        createdAt: toDate(po.created),
-      },
-    });
-
-    // Pull the payout breakdown from balance transactions
-    const btIter = stripe.balanceTransactions.list({
+  // Fetch all charges for the specified period
+  while (hasMore) {
+    const params: any = {
+      created: { gte: startTimestamp },
       limit: 100,
-      payout: po.id,
-    });
+    };
+    
+    if (startingAfter) {
+      params.starting_after = startingAfter;
+    }
 
-    for await (const tx of btIter) {
-      await prisma.stripeBalanceTx.upsert({
-        where: { id: tx.id },
-        update: {
-          accountId,
-          type: tx.type,
-          amount: BigInt(tx.amount),
-          currency: tx.currency.toUpperCase(),
-          fee: tx.fee != null ? BigInt(tx.fee) : null,
-          net: tx.net != null ? BigInt(tx.net) : null,
-          availableOnUnix: tx.available_on ?? null,
-          createdUnix: tx.created,
-          createdAt: toDate(tx.created),
-          reportingCategory: tx.reporting_category ?? null,
-          sourceId: tx.source ? String(tx.source) : null,
-          payoutId: (tx as any).payout ?? null,
-          rawJson: tx as any,
-        },
+    const charges = await stripe.charges.list(params);
+    allCharges = allCharges.concat(charges.data);
+    
+    hasMore = charges.has_more;
+    if (hasMore && charges.data.length > 0) {
+      startingAfter = charges.data[charges.data.length - 1].id;
+    }
+  }
+
+  let syncedCount = 0;
+
+  for (const charge of allCharges) {
+    try {
+      // Get balance transaction for fee/net amounts
+      let fee = 0;
+      let net = 0;
+      
+      if (charge.balance_transaction) {
+        const balanceTx = await stripe.balanceTransactions.retrieve(charge.balance_transaction as string);
+        fee = balanceTx.fee;
+        net = balanceTx.net;
+      }
+
+      // Ensure we have an account record
+      const accountId = 'acct_default'; // Use default account for test mode
+      await db.stripeAccount.upsert({
+        where: { id: accountId },
+        update: {},
         create: {
-          id: tx.id,
-          accountId,
-          type: tx.type,
-          amount: BigInt(tx.amount),
-          currency: tx.currency.toUpperCase(),
-          fee: tx.fee != null ? BigInt(tx.fee) : null,
-          net: tx.net != null ? BigInt(tx.net) : null,
-          availableOnUnix: tx.available_on ?? null,
-          createdUnix: tx.created,
-          createdAt: toDate(tx.created),
-          reportingCategory: tx.reporting_category ?? null,
-          sourceId: tx.source ? String(tx.source) : null,
-          payoutId: (tx as any).payout ?? null,
-          rawJson: tx as any,
+          id: accountId,
+          defaultCurrency: charge.currency.toUpperCase(),
         },
       });
 
-      // If the balance tx is tied to a charge, associate that charge to this payout
-      const sourceId = tx.source ? String(tx.source) : null;
-      if (sourceId?.startsWith("ch_") && (tx as any).payout) {
-        await prisma.stripeCharge.updateMany({
-          where: { id: sourceId, accountId },
-          data: { payoutId: (tx as any).payout },
-        });
-      }
+      // Upsert charge
+      await db.stripeCharge.upsert({
+        where: { id: charge.id },
+        update: {
+          amount: toMinorUnits(charge.amount),
+          currency: charge.currency.toUpperCase(),
+          fee: toMinorUnits(fee),
+          net: toMinorUnits(net),
+          status: charge.status || 'unknown',
+          description: charge.description || null,
+          payoutId: charge.transfer_data?.destination || null,
+          metadataJson: charge.metadata,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: charge.id,
+          accountId,
+          customerId: charge.customer as string || null,
+          paymentIntent: charge.payment_intent as string || null,
+          amount: toMinorUnits(charge.amount),
+          currency: charge.currency.toUpperCase(),
+          fee: toMinorUnits(fee),
+          net: toMinorUnits(net),
+          status: charge.status || 'unknown',
+          createdAtUnix: charge.created,
+          createdAt: new Date(charge.created * 1000),
+          description: charge.description || null,
+          payoutId: charge.transfer_data?.destination || null,
+          metadataJson: charge.metadata,
+        },
+      });
 
-      // Multi-currency flag: payout currency != tx currency
-      if ((tx as any).payout && tx.currency.toUpperCase() !== po.currency.toUpperCase()) {
-        await prisma.stripeException.create({
-          data: {
-            kind: "MULTI_CURRENCY_PAYOUT",
-            refId: (tx as any).payout,
-            message: `Payout ${(tx as any).payout} is ${po.currency} but balance tx ${tx.id} is ${tx.currency}`,
-            data: { payoutCurrency: po.currency, txCurrency: tx.currency, txId: tx.id },
-          },
-        });
-      }
+      syncedCount++;
+    } catch (error) {
+      console.error(`Error syncing charge ${charge.id}:`, error);
+      
+      // Record exception
+      await db.stripeException.create({
+        data: {
+          kind: 'CHARGE_SYNC_ERROR',
+          refId: charge.id,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          data: { chargeId: charge.id, error: String(error) },
+        },
+      });
     }
   }
+
+  return syncedCount;
 }
 
-export async function syncStripeAll(params: { accountId: string; days?: number }) {
-  const { accountId, days = 30 } = params;
-  const sinceUnix = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
+export async function syncPayouts({ days }: { days: number }): Promise<number> {
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const startTimestamp = Math.floor(startDate.getTime() / 1000);
 
-  await syncCharges({ accountId, sinceUnix });
-  await syncPayouts({ accountId, sinceUnix });
+  let allPayouts: any[] = [];
+  let hasMore = true;
+  let startingAfter: string | undefined;
 
-  // Simple sanity flags: charges without payout after 5 days
-  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-  const dangling = await prisma.stripeCharge.findMany({
-    where: { payoutId: null, createdAt: { lt: fiveDaysAgo } },
-    select: { id: true, amount: true, currency: true, createdAt: true },
-  });
-  for (const ch of dangling) {
-    await prisma.stripeException.create({
-      data: {
-        kind: "CHARGE_NO_PAYOUT",
-        refId: ch.id,
-        message: `Charge ${ch.id} has no associated payout (aged)`,
-        data: { amount: ch.amount.toString(), currency: ch.currency, createdAt: ch.createdAt },
-      },
-    });
+  // Fetch all payouts for the specified period
+  while (hasMore) {
+    const params: any = {
+      created: { gte: startTimestamp },
+      limit: 100,
+    };
+    
+    if (startingAfter) {
+      params.starting_after = startingAfter;
+    }
+
+    const payouts = await stripe.payouts.list(params);
+    allPayouts = allPayouts.concat(payouts.data);
+    
+    hasMore = payouts.has_more;
+    if (hasMore && payouts.data.length > 0) {
+      startingAfter = payouts.data[payouts.data.length - 1].id;
+    }
   }
 
-  return { ok: true };
+  let syncedCount = 0;
+
+  for (const payout of allPayouts) {
+    try {
+      const accountId = 'acct_default';
+      
+      // Ensure account exists
+      await db.stripeAccount.upsert({
+        where: { id: accountId },
+        update: {},
+        create: {
+          id: accountId,
+          defaultCurrency: payout.currency.toUpperCase(),
+        },
+      });
+
+      // Upsert payout
+      await db.stripePayout.upsert({
+        where: { id: payout.id },
+        update: {
+          amount: toMinorUnits(payout.amount),
+          currency: payout.currency.toUpperCase(),
+          status: payout.status,
+          description: payout.description || null,
+          statementDescriptor: payout.statement_descriptor || null,
+          metadataJson: payout.metadata,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: payout.id,
+          accountId,
+          amount: toMinorUnits(payout.amount),
+          currency: payout.currency.toUpperCase(),
+          status: payout.status,
+          arrivalDateUnix: payout.arrival_date,
+          arrivalDate: new Date(payout.arrival_date * 1000),
+          description: payout.description || null,
+          statementDescriptor: payout.statement_descriptor || null,
+          metadataJson: payout.metadata,
+          createdAtUnix: payout.created,
+          createdAt: new Date(payout.created * 1000),
+        },
+      });
+
+      // Fetch and sync balance transactions for this payout
+      let balanceTxs: any[] = [];
+      let hasMoreBts = true;
+      let startingAfterBt: string | undefined;
+
+      while (hasMoreBts) {
+        const btParams: any = {
+          payout: payout.id,
+          limit: 100,
+        };
+        
+        if (startingAfterBt) {
+          btParams.starting_after = startingAfterBt;
+        }
+
+        const balanceTransactions = await stripe.balanceTransactions.list(btParams);
+        balanceTxs = balanceTxs.concat(balanceTransactions.data);
+        
+        hasMoreBts = balanceTransactions.has_more;
+        if (hasMoreBts && balanceTransactions.data.length > 0) {
+          startingAfterBt = balanceTransactions.data[balanceTransactions.data.length - 1].id;
+        }
+      }
+
+      // Sync balance transactions
+      for (const bt of balanceTxs) {
+        try {
+          await db.stripeBalanceTx.upsert({
+            where: { id: bt.id },
+            update: {
+              type: bt.type,
+              amount: toMinorUnits(bt.amount),
+              currency: bt.currency.toUpperCase(),
+              fee: toMinorUnits(bt.fee || 0),
+              net: toMinorUnits(bt.net || 0),
+              availableOnUnix: bt.available_on || null,
+              reportingCategory: bt.reporting_category || null,
+              sourceId: bt.source || null,
+              payoutId: payout.id,
+              rawJson: bt,
+              updatedAt: new Date(),
+            },
+            create: {
+              id: bt.id,
+              accountId,
+              type: bt.type,
+              amount: toMinorUnits(bt.amount),
+              currency: bt.currency.toUpperCase(),
+              fee: toMinorUnits(bt.fee || 0),
+              net: toMinorUnits(bt.net || 0),
+              availableOnUnix: bt.available_on || null,
+              createdUnix: bt.created,
+              createdAt: new Date(bt.created * 1000),
+              reportingCategory: bt.reporting_category || null,
+              sourceId: bt.source || null,
+              payoutId: payout.id,
+              rawJson: bt,
+            },
+          });
+
+          // Link charges to payouts via balance transactions
+          if (bt.source && bt.type === 'charge') {
+            await db.stripeCharge.updateMany({
+              where: { id: bt.source },
+              data: { payoutId: payout.id },
+            });
+          }
+        } catch (error) {
+          console.error(`Error syncing balance transaction ${bt.id}:`, error);
+          
+          await db.stripeException.create({
+            data: {
+              kind: 'BALANCE_TX_SYNC_ERROR',
+              refId: bt.id,
+              message: error instanceof Error ? error.message : 'Unknown error',
+              data: { balanceTxId: bt.id, payoutId: payout.id, error: String(error) },
+            },
+          });
+        }
+      }
+
+      syncedCount++;
+    } catch (error) {
+      console.error(`Error syncing payout ${payout.id}:`, error);
+      
+      await db.stripeException.create({
+        data: {
+          kind: 'PAYOUT_SYNC_ERROR',
+          refId: payout.id,
+          message: error instanceof Error ? error.message : 'Unknown error',
+          data: { payoutId: payout.id, error: String(error) },
+        },
+      });
+    }
+  }
+
+  return syncedCount;
+}
+
+export async function syncStripeAll({ days }: { days: number }): Promise<SyncResult> {
+  console.log(`Starting Stripe sync for last ${days} days...`);
+  
+  const charges = await syncCharges({ days });
+  const payouts = await syncPayouts({ days });
+  
+  // Count balance transactions and exceptions
+  const balanceTxs = await db.stripeBalanceTx.count();
+  const exceptions = await db.stripeException.count();
+  
+  console.log(`Stripe sync complete: ${charges} charges, ${payouts} payouts, ${balanceTxs} balance txs, ${exceptions} exceptions`);
+  
+  return {
+    charges,
+    payouts,
+    balanceTxs,
+    exceptions,
+  };
 }

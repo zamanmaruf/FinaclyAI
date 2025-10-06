@@ -37,8 +37,20 @@ export default function HomePage() {
     }
   };
 
+  // Show test checklist in development
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
   return (
     <div className="min-h-screen flex flex-col">
+      {isDevelopment && (
+        <div className="bg-yellow-100 border-b border-yellow-200 px-4 py-2 text-sm">
+          <div className="container flex items-center justify-between">
+            <span className="text-yellow-800">
+              🧪 <strong>QBO Test:</strong> Visit <a href="/api/qbo/connect" className="underline font-mono">/api/qbo/connect</a> to authorize, then test <a href="/api/qbo/test-checklist" className="underline font-mono">/api/qbo/test-checklist</a>
+            </span>
+          </div>
+        </div>
+      )}
       <Navigation />
       
       <main className="flex-1">
