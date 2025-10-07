@@ -53,10 +53,14 @@ interface VerifyAllResult {
     status: 'PASS' | 'FAIL'
     health: boolean
     stripeSync: boolean
+    plaidCreateLinkToken: boolean
     plaidSandboxLink: boolean
     plaidTransactions: boolean
     qboPing: boolean
     matching: boolean
+    stats: boolean
+    exceptionsList: boolean
+    sync: boolean
   }
   frontendPages: {
     status: 'PASS' | 'FAIL'
@@ -78,7 +82,7 @@ async function main() {
     plaid: { status: 'FAIL', itemCreated: false, webhookFired: false, firstRun: { inserted: 0, updated: 0 }, secondRun: { inserted: 0, updated: 0 }, transactions: 0 },
     qbo: { status: 'FAIL', hasToken: false, pingAttempts: 0 },
     matching: { status: 'FAIL', scanned: 0, matchedCount: 0, ambiguous: 0, exceptionsCreated: 0, unmatchedPayouts: 0 },
-    apiRoutes: { status: 'FAIL', health: false, stripeSync: false, plaidSandboxLink: false, plaidTransactions: false, qboPing: false, matching: false },
+    apiRoutes: { status: 'FAIL', health: false, stripeSync: false, plaidCreateLinkToken: false, plaidSandboxLink: false, plaidTransactions: false, qboPing: false, matching: false, stats: false, exceptionsList: false, sync: false },
     frontendPages: { status: 'FAIL', landing: false, connect: false, dashboard: false, login: false },
     overall: 'VERIFICATION INCOMPLETE'
   }
@@ -273,8 +277,23 @@ async function main() {
     try {
       const health = await fetch(`${baseUrl}/api/health`)
       result.apiRoutes.health = health.ok
+      
+      const stats = await fetch(`${baseUrl}/api/stats`)
+      result.apiRoutes.stats = stats.ok
+      
+      const exceptionsList = await fetch(`${baseUrl}/api/exceptions/list`)
+      result.apiRoutes.exceptionsList = exceptionsList.ok
+      
+      const sync = await fetch(`${baseUrl}/api/sync`, { method: 'POST' })
+      result.apiRoutes.sync = sync.ok
+      
+      // Test plaid link token creation
+      const linkToken = await fetch(`${baseUrl}/api/plaid/create-link-token`, { method: 'POST' })
+      result.apiRoutes.plaidCreateLinkToken = linkToken.ok
+      
+      result.apiRoutes.status = result.apiRoutes.health ? 'PASS' : 'FAIL'
     } catch (error) {
-      console.error('Health check failed:', error)
+      console.error('API routes check failed:', error)
     }
 
     // Frontend pages check
