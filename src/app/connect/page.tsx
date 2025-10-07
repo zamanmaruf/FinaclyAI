@@ -16,13 +16,15 @@ import {
   TextField,
   CircularProgress,
   Divider,
-  Fade
+  Fade,
+  Alert
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
   AccountBalance as BankIcon,
   Payment as StripeIcon,
-  Assessment as QboIcon
+  Assessment as QboIcon,
+  ArrowForward as ArrowIcon
 } from '@mui/icons-material'
 import Navigation from '@/components/Navigation'
 import { useThemeMode } from '@/app/theme-provider'

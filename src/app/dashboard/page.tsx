@@ -23,7 +23,7 @@ import {
   Tooltip,
   TextField,
   InputAdornment,
-  Pagination,
+  TablePagination,
   Fade
 } from '@mui/material'
 import {
@@ -36,7 +36,7 @@ import {
 } from '@mui/icons-material'
 import Navigation from '@/components/Navigation'
 import { useThemeMode } from '@/app/theme-provider'
-import { DashboardSkeleton } from '@/components/LoadingSkeleton'
+import LoadingSkeleton from '@/components/LoadingSkeleton'
 import toast from 'react-hot-toast'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
