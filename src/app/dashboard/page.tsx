@@ -152,7 +152,7 @@ export default function DashboardPage() {
           </Container>
         </Box>
         <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
-          <DashboardSkeleton />
+          <LoadingSkeleton variant="rectangular" height={400} />
         </Container>
       </Box>
     )
