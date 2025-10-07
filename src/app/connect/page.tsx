@@ -110,7 +110,7 @@ export default function ConnectPage() {
         <Grid container spacing={4}>
           {/* Stripe Connection */}
           <Grid item xs={12} md={4}>
-            <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Card elevation={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }} component="form" onSubmit={handleSubmit(onStripeSubmit)}>
               <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <StripeIcon sx={{ fontSize: 40, color: '#635BFF', mr: 2 }} />
@@ -124,37 +124,36 @@ export default function ConnectPage() {
 
                 <Divider sx={{ my: 2 }} />
 
-                <Box component="form" onSubmit={handleSubmit(onStripeSubmit)}>
-                  <TextField
-                    {...register('secretKey')}
-                    fullWidth
-                    type="password"
-                    label="Stripe Secret Key"
-                    placeholder="sk_test_..."
-                    size="small"
-                    error={!!errors.secretKey}
-                    helperText={errors.secretKey?.message || "Enter your Stripe API secret key (starts with sk_test_ or sk_live_)"}
-                    sx={{ mb: 2 }}
-                  />
+                <TextField
+                  {...register('secretKey')}
+                  fullWidth
+                  type="password"
+                  label="Stripe Secret Key"
+                  placeholder="sk_test_..."
+                  size="small"
+                  error={!!errors.secretKey}
+                  helperText={errors.secretKey?.message || "Enter your Stripe API secret key (starts with sk_test_ or sk_live_)"}
+                  sx={{ mb: 2 }}
+                />
 
-                  {stripeConnected && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
-                      <CheckCircleIcon />
-                      <Typography variant="body2" fontWeight="medium">Connected ✓</Typography>
-                    </Box>
-                  )}
+                {stripeConnected && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
+                    <CheckCircleIcon />
+                    <Typography variant="body2" fontWeight="medium">Connected ✓</Typography>
+                  </Box>
+                )}
               </CardContent>
 
-                  <Button
-                    fullWidth
-                    type="submit"
-                    variant="contained"
-                    disabled={isSubmitting}
-                    startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
-                  >
-                    {isSubmitting ? 'Connecting...' : 'Connect Stripe'}
-                  </Button>
-                </Box>
+              <CardActions sx={{ p: 2, pt: 0 }}>
+                <Button
+                  fullWidth
+                  type="submit"
+                  variant="contained"
+                  disabled={isSubmitting}
+                  startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
+                >
+                  {isSubmitting ? 'Connecting...' : 'Connect Stripe'}
+                </Button>
               </CardActions>
             </Card>
           </Grid>
