@@ -34,9 +34,9 @@ async function verifyDay4(): Promise<VerificationResult> {
       inserted: 0,
       afterSecondRunDelta: 0,
     },
-    stripePresence: 'WARN',
+    stripePresence: 'FAIL',
     matching: {
-      status: 'WARN',
+      status: 'FAIL',
       matched: 0,
       exceptions: {
         PAYOUT_NO_BANK_MATCH: 0,
@@ -46,36 +46,33 @@ async function verifyDay4(): Promise<VerificationResult> {
   };
 
   try {
-    // Check environment variables
-    if (!process.env.PLAID_CLIENT_ID) {
-      console.error('❌ PLAID_CLIENT_ID not found');
+    // 1. Environment check
+    console.log('🔍 Checking environment variables...');
+    
+    if (!process.env.PLAID_CLIENT_ID || !process.env.PLAID_SECRET) {
+      console.error('❌ PLAID_CLIENT_ID or PLAID_SECRET not found');
       return result;
     }
     
-    if (!process.env.PLAID_SECRET) {
-      console.error('❌ PLAID_SECRET not found');
-      return result;
-    }
-
     if (process.env.PLAID_ENV !== 'sandbox') {
       console.error('❌ PLAID_ENV must be "sandbox"');
       return result;
     }
-
+    
     result.env = 'PASS';
     console.log('✅ Environment variables verified');
 
-    // Check database connection
+    // 2. Database health check
+    console.log('🔍 Checking database connection...');
     await prisma.$connect();
-    await prisma.bankItem.count(); // Test query
+    await prisma.stripePayout.count(); // Test query
     result.db = 'PASS';
     console.log('✅ Database connection verified');
 
-    // Ensure sandbox item
+    // 3. Ensure sandbox item
+    console.log('🔍 Ensuring sandbox item...');
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const sandboxUrl = `${baseUrl}/api/plaid/sandbox-link`;
-
-    console.log(`🔗 Testing sandbox link: ${sandboxUrl}`);
 
     const sandboxResponse = await fetch(sandboxUrl, {
       method: 'POST',
@@ -91,19 +88,20 @@ async function verifyDay4(): Promise<VerificationResult> {
     }
 
     const sandboxResult = await sandboxResponse.json();
-    console.log('✅ Sandbox item created/verified:', sandboxResult);
+    if (!sandboxResult.ok) {
+      console.error('❌ Sandbox link returned error:', sandboxResult.error);
+      return result;
+    }
+
     result.plaidItem = 'PASS';
+    console.log('✅ Sandbox item created/verified');
 
-    // Get initial transaction count
-    const initialTransactionCount = await prisma.plaidTransaction.count();
-    console.log(`📊 Initial transaction count: ${initialTransactionCount}`);
+    // 4. Transactions sync
+    console.log('🔍 Testing transactions sync...');
+    const transactionsUrl = `${baseUrl}/api/plaid/transactions?days=30`;
 
-    // Test transaction sync
-    const syncUrl = `${baseUrl}/api/plaid/transactions?days=30`;
-
-    console.log(`🔄 Testing transaction sync: ${syncUrl}`);
-
-    const syncResponse1 = await fetch(syncUrl, {
+    // First sync
+    const syncResponse1 = await fetch(transactionsUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -117,15 +115,16 @@ async function verifyDay4(): Promise<VerificationResult> {
     }
 
     const syncResult1 = await syncResponse1.json();
-    console.log('✅ First sync completed:', syncResult1);
+    if (!syncResult1.ok) {
+      console.error('❌ First sync returned error:', syncResult1.error);
+      return result;
+    }
 
-    const afterFirstSyncCount = await prisma.plaidTransaction.count();
-    result.plaidTransactions.inserted = afterFirstSyncCount - initialTransactionCount;
+    result.plaidTransactions.inserted = syncResult1.totals.inserted + syncResult1.totals.updated;
+    console.log(`✅ First sync completed: ${result.plaidTransactions.inserted} transactions`);
 
-    // Wait a moment then run second sync to test idempotency
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const syncResponse2 = await fetch(syncUrl, {
+    // Second sync for idempotency test
+    const syncResponse2 = await fetch(transactionsUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -139,33 +138,37 @@ async function verifyDay4(): Promise<VerificationResult> {
     }
 
     const syncResult2 = await syncResponse2.json();
-    console.log('✅ Second sync completed:', syncResult2);
+    if (!syncResult2.ok) {
+      console.error('❌ Second sync returned error:', syncResult2.error);
+      return result;
+    }
 
-    const afterSecondSyncCount = await prisma.plaidTransaction.count();
-    result.plaidTransactions.afterSecondRunDelta = afterSecondSyncCount - afterFirstSyncCount;
-
-    if (result.plaidTransactions.afterSecondRunDelta === 0) {
-      console.log('✅ Idempotency verified - no duplicate transactions created');
+    const secondRunTotal = syncResult2.totals.inserted + syncResult2.totals.updated;
+    result.plaidTransactions.afterSecondRunDelta = secondRunTotal;
+    
+    if (secondRunTotal === 0) {
       result.plaidTransactions.PASS = true;
+      console.log('✅ Idempotency verified - no new transactions in second run');
     } else {
-      console.log('⚠️  Idempotency check: Some transactions were added in second sync');
-      result.plaidTransactions.PASS = true; // Still pass, just note the delta
+      console.log(`⚠️  Second run added ${secondRunTotal} transactions`);
     }
 
-    // Check Stripe presence
-    const stripePayoutCount = await prisma.stripePayout.count();
-    if (stripePayoutCount > 0) {
+    // 5. Stripe presence check
+    console.log('🔍 Checking Stripe data presence...');
+    const payoutCount = await prisma.stripePayout.count();
+    
+    if (payoutCount > 0) {
       result.stripePresence = 'PASS';
-      console.log(`✅ Found ${stripePayoutCount} Stripe payouts`);
+      console.log(`✅ Found ${payoutCount} Stripe payouts`);
     } else {
-      console.log('⚠️  No Stripe payouts found - matching will be limited');
+      result.stripePresence = 'WARN';
+      console.log('⚠️  No Stripe payouts found - matching will be skipped');
     }
 
-    // Test matching if we have payouts
-    if (stripePayoutCount > 0) {
+    // 6. Matching (only if we have payouts)
+    if (payoutCount > 0) {
+      console.log('🔍 Testing payout↔bank matching...');
       const matchingUrl = `${baseUrl}/api/match/payouts-bank`;
-
-      console.log(`🔗 Testing payout matching: ${matchingUrl}`);
 
       const matchingResponse = await fetch(matchingUrl, {
         method: 'POST',
@@ -177,36 +180,39 @@ async function verifyDay4(): Promise<VerificationResult> {
       if (!matchingResponse.ok) {
         const errorText = await matchingResponse.text();
         console.error(`❌ Matching failed: ${matchingResponse.status} ${errorText}`);
-        return result;
+        result.matching.status = 'FAIL';
+      } else {
+        const matchingResult = await matchingResponse.json();
+        if (!matchingResult.ok) {
+          console.error('❌ Matching returned error:', matchingResult.error);
+          result.matching.status = 'FAIL';
+        } else {
+          result.matching.matched = matchingResult.matched;
+          result.matching.status = 'PASS';
+          console.log(`✅ Matching completed: ${matchingResult.matched} matched, ${matchingResult.exceptions} exceptions`);
+        }
       }
 
-      const matchingResult = await matchingResponse.json();
-      console.log('✅ Matching completed:', matchingResult);
-
-      result.matching.status = 'PASS';
-      result.matching.matched = matchingResult.details?.matchedCount || 0;
-
       // Count exceptions by type
-      const exceptions = await prisma.stripeException.findMany({
-        where: {
-          kind: {
-            in: ['PAYOUT_NO_BANK_MATCH', 'AMBIGUOUS_BANK_MATCH'],
-          },
-        },
+      const noMatchExceptions = await prisma.stripeException.count({
+        where: { kind: 'PAYOUT_NO_BANK_MATCH' },
+      });
+      const ambiguousExceptions = await prisma.stripeException.count({
+        where: { kind: 'AMBIGUOUS_BANK_MATCH' },
       });
 
-      result.matching.exceptions.PAYOUT_NO_BANK_MATCH = exceptions.filter(e => e.kind === 'PAYOUT_NO_BANK_MATCH').length;
-      result.matching.exceptions.AMBIGUOUS_BANK_MATCH = exceptions.filter(e => e.kind === 'AMBIGUOUS_BANK_MATCH').length;
+      result.matching.exceptions.PAYOUT_NO_BANK_MATCH = noMatchExceptions;
+      result.matching.exceptions.AMBIGUOUS_BANK_MATCH = ambiguousExceptions;
     } else {
-      console.log('⚠️  Skipping matching test - no payouts available');
-      console.log('💡 Tip: Run "npm run stripe:sync" to create test payouts first');
+      result.matching.status = 'WARN';
+      console.log('⚠️  Skipping matching - no payouts available');
     }
 
     console.log('✅ Day 4 verification completed successfully');
 
   } catch (error) {
     console.error('❌ Verification failed:', error);
-    process.exit(1);
+    throw error;
   } finally {
     await prisma.$disconnect();
   }
@@ -216,15 +222,23 @@ async function verifyDay4(): Promise<VerificationResult> {
 
 // Run verification
 verifyDay4().then(result => {
-  console.log('\n📋 Final Verification Result:');
+  console.log('\n📋 Day 4 Verification Result:');
   console.log(JSON.stringify(result, null, 2));
   
-  if (result.env === 'PASS' && result.db === 'PASS' && result.plaidItem === 'PASS' && result.plaidTransactions.PASS) {
-    console.log('\n🎉 All Day 4 Plaid requirements verified successfully!');
-    process.exit(0);
-  } else {
-    console.log('\n❌ Some requirements failed verification');
+  // Determine exit code
+  const criticalFailures = [
+    result.env === 'FAIL',
+    result.db === 'FAIL',
+    result.plaidItem === 'FAIL',
+    !result.plaidTransactions.PASS,
+  ];
+  
+  if (criticalFailures.some(fail => fail)) {
+    console.log('\n❌ Critical requirements failed verification');
     process.exit(1);
+  } else {
+    console.log('\n🎉 Day 4 requirements verified successfully!');
+    process.exit(0);
   }
 }).catch(error => {
   console.error('💥 Verification script failed:', error);

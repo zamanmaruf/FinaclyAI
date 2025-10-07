@@ -1,32 +1,31 @@
-import { NextResponse } from 'next/server';
-import { ensureSandboxItem } from '@/server/plaid';
-import { db } from '@/server/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { ensureSandboxItem } from '../../../../server/plaid';
+import { prisma } from '../../../../server/db';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const bankItem = await ensureSandboxItem();
+    const item = await ensureSandboxItem();
     
-    // Get accounts for this item
-    const accounts = await db.bankAccount.findMany({
-      where: { bankItemId: bankItem.id },
+    // Get accounts for the item
+    const accounts = await prisma.bankAccount.findMany({
+      where: { bankItemId: item.id },
       select: {
-        id: true,
-        name: true,
         plaidAccountId: true,
+        name: true,
+        officialName: true,
         currency: true,
       },
     });
 
     return NextResponse.json({
       ok: true,
-      itemId: bankItem.id,
-      institutionName: bankItem.institutionName,
-      accounts: accounts,
+      itemId: item.itemId,
+      accounts,
     });
   } catch (error) {
     console.error('Sandbox link error:', error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { ok: false, error: 'Failed to create sandbox link' },
       { status: 500 }
     );
   }
