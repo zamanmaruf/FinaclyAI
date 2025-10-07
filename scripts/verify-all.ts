@@ -120,11 +120,16 @@ async function main() {
     }
 
     // QBO ping & token presence
-    const tokenCount = await prisma.qboToken.count()
+    const token = await prisma.qboToken.findFirst({ select: { realmId: true } })
+    const tokenCount = token ? 1 : 0
     result.qbo.hasToken = tokenCount > 0
     try {
-      const ping = await fetch(`${baseUrl}/api/qbo/ping`)
-      result.qbo.status = ping.ok ? 'PASS' : (result.qbo.hasToken ? 'FAIL' : 'WARN')
+      if (token && token.realmId) {
+        const ping = await fetch(`${baseUrl}/api/qbo/ping?realmId=${encodeURIComponent(token.realmId)}`)
+        result.qbo.status = ping.ok ? 'PASS' : 'FAIL'
+      } else {
+        result.qbo.status = 'WARN'
+      }
     } catch {
       result.qbo.status = result.qbo.hasToken ? 'FAIL' : 'WARN'
     }
