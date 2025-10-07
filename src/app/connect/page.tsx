@@ -1,6 +1,8 @@
 "use client";
 import { useState } from 'react'
-import Link from 'next/link'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { 
   Container, 
   Box, 
@@ -12,89 +14,85 @@ import {
   CardContent,
   CardActions,
   TextField,
-  Alert,
   CircularProgress,
   Divider,
-  AppBar,
-  Toolbar
+  Fade
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
   AccountBalance as BankIcon,
   Payment as StripeIcon,
   Assessment as QboIcon
-} from '@mui/material-icons'
+} from '@mui/icons-material'
+import Navigation from '@/components/Navigation'
+import { useThemeMode } from '@/app/theme-provider'
+import toast from 'react-hot-toast'
+
+const stripeSchema = z.object({
+  secretKey: z.string().startsWith('sk_', 'Must be a valid Stripe secret key'),
+});
+
+type StripeForm = z.infer<typeof stripeSchema>;
 
 export default function ConnectPage() {
-  const [stripeKey, setStripeKey] = useState('')
-  const [savingStripe, setSavingStripe] = useState(false)
-  const [stripeStatus, setStripeStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [stripeConnected, setStripeConnected] = useState(false)
   const [plaidLoading, setPlaidLoading] = useState(false)
+  const { mode, toggleTheme } = useThemeMode()
+  
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<StripeForm>({
+    resolver: zodResolver(stripeSchema),
+  });
 
-  async function saveStripe() {
-    if (!stripeKey.trim()) {
-      setStripeStatus('error')
-      return
-    }
+  async function onStripeSubmit(data: StripeForm) {
+    const toastId = toast.loading('Connecting to Stripe...');
     
-    setSavingStripe(true)
     try {
       const response = await fetch('/api/stripe/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secretKey: stripeKey }),
+        body: JSON.stringify(data),
       })
       
       if (response.ok) {
-        setStripeStatus('success')
-        setStripeKey('')
+        setStripeConnected(true)
+        reset()
+        toast.success('Stripe connected successfully!', { id: toastId })
       } else {
-        setStripeStatus('error')
+        toast.error('Failed to connect Stripe. Check your key.', { id: toastId })
       }
     } catch (error) {
-      setStripeStatus('error')
-    } finally {
-      setSavingStripe(false)
+      toast.error('Network error while connecting Stripe', { id: toastId })
     }
   }
 
   async function connectPlaidSandbox() {
     setPlaidLoading(true)
+    const toastId = toast.loading('Connecting to Plaid sandbox...')
+    
     try {
       const response = await fetch('/api/plaid/sandbox-link', { method: 'POST' })
       if (response.ok) {
-        alert('Plaid sandbox account connected successfully!')
+        toast.success('Plaid sandbox account connected successfully!', { id: toastId })
       } else {
-        alert('Failed to connect Plaid sandbox')
+        toast.error('Failed to connect Plaid sandbox', { id: toastId })
       }
     } catch (error) {
-      alert('Error connecting Plaid')
+      toast.error('Error connecting Plaid', { id: toastId })
     } finally {
       setPlaidLoading(false)
     }
   }
 
   function connectQBO() {
-    // Redirect to QBO OAuth
-    window.location.href = '/api/qbo/connect'
+    toast.loading('Redirecting to QuickBooks...', { duration: 2000 })
+    setTimeout(() => {
+      window.location.href = '/api/qbo/connect'
+    }, 500)
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      {/* Navigation */}
-      <AppBar position="static" elevation={2}>
-        <Toolbar>
-          <Typography variant="h5" component={Link} href="/" sx={{ flexGrow: 1, fontWeight: 'bold', textDecoration: 'none', color: 'inherit' }}>
-            Finacly AI
-          </Typography>
-          <Button color="inherit" component={Link} href="/connect">
-            Connect
-          </Button>
-          <Button color="inherit" component={Link} href="/dashboard">
-            Dashboard
-          </Button>
-        </Toolbar>
-      </AppBar>
+    <Box sx={{ minHeight: '100vh' }}>
+      <Navigation onThemeToggle={toggleTheme} currentTheme={mode} />
 
       {/* Header */}
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 3, px: 3, boxShadow: 2 }}>
@@ -126,40 +124,37 @@ export default function ConnectPage() {
 
                 <Divider sx={{ my: 2 }} />
 
-                <TextField
-                  fullWidth
-                  type="password"
-                  label="Stripe Secret Key"
-                  placeholder="sk_test_..."
-                  value={stripeKey}
-                  onChange={(e) => setStripeKey(e.target.value)}
-                  size="small"
-                  sx={{ mb: 2 }}
-                  helperText="Enter your Stripe API secret key (starts with sk_test_ or sk_live_)"
-                />
+                <Box component="form" onSubmit={handleSubmit(onStripeSubmit)}>
+                  <TextField
+                    {...register('secretKey')}
+                    fullWidth
+                    type="password"
+                    label="Stripe Secret Key"
+                    placeholder="sk_test_..."
+                    size="small"
+                    error={!!errors.secretKey}
+                    helperText={errors.secretKey?.message || "Enter your Stripe API secret key (starts with sk_test_ or sk_live_)"}
+                    sx={{ mb: 2 }}
+                  />
 
-                {stripeStatus === 'success' && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
-                    Stripe connected successfully!
-                  </Alert>
-                )}
-                {stripeStatus === 'error' && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    Failed to connect Stripe. Check your key.
-                  </Alert>
-                )}
+                  {stripeConnected && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
+                      <CheckCircleIcon />
+                      <Typography variant="body2" fontWeight="medium">Connected ✓</Typography>
+                    </Box>
+                  )}
               </CardContent>
 
-              <CardActions sx={{ p: 2, pt: 0 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  onClick={saveStripe}
-                  disabled={savingStripe || !stripeKey}
-                  startIcon={savingStripe ? <CircularProgress size={20} /> : null}
-                >
-                  {savingStripe ? 'Connecting...' : 'Connect Stripe'}
-                </Button>
+                  <Button
+                    fullWidth
+                    type="submit"
+                    variant="contained"
+                    disabled={isSubmitting}
+                    startIcon={isSubmitting ? <CircularProgress size={20} /> : null}
+                  >
+                    {isSubmitting ? 'Connecting...' : 'Connect Stripe'}
+                  </Button>
+                </Box>
               </CardActions>
             </Card>
           </Grid>

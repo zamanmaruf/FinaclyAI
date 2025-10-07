@@ -1,68 +1,104 @@
-"use client";
+'use client';
 
-import { Button } from "./ui/Button";
+import { AppBar, Toolbar, Typography, Button, Box, IconButton, useTheme, useMediaQuery } from '@mui/material';
+import { Brightness4, Brightness7, Menu as MenuIcon } from '@mui/icons-material';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
-export function Navigation() {
-  const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" });
-    }
+interface NavigationProps {
+  onThemeToggle?: () => void;
+  currentTheme?: 'light' | 'dark';
+}
+
+export default function Navigation({ onThemeToggle, currentTheme = 'light' }: NavigationProps) {
+  const pathname = usePathname();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { label: 'Home', href: '/' },
+    { label: 'Connect', href: '/connect' },
+    { label: 'Dashboard', href: '/dashboard' },
+  ];
+
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname?.startsWith(href);
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-      <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-blue-600 to-cyan-500">
-            <span className="text-sm font-bold text-white">F</span>
-          </div>
-          <span className="text-xl font-bold text-gray-900">Finacly AI</span>
-        </div>
-        
-        <nav className="hidden md:flex items-center space-x-8">
-          <button
-            onClick={() => scrollToSection("features")}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            Features
-          </button>
-          <button
-            onClick={() => scrollToSection("how-it-works")}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            How it Works
-          </button>
-          <button
-            onClick={() => scrollToSection("security")}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            Security
-          </button>
-          <button
-            onClick={() => scrollToSection("pricing")}
-            className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
-          >
-            Pricing
-          </button>
-        </nav>
-        
-        <Button
-          onClick={() => scrollToSection("waitlist")}
-          variant="primary"
-          size="sm"
-          className="hidden sm:inline-flex"
+    <AppBar position="sticky" elevation={2} sx={{ zIndex: theme.zIndex.drawer + 1 }}>
+      <Toolbar>
+        <Typography 
+          variant="h5" 
+          component={Link} 
+          href="/" 
+          sx={{ 
+            flexGrow: 1, 
+            fontWeight: 'bold', 
+            textDecoration: 'none', 
+            color: 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}
         >
-          Join Waitlist
-        </Button>
-        
-        {/* Mobile menu button */}
-        <button className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      </div>
-    </header>
+          <Box component="span" sx={{ fontSize: '1.5rem' }}>⚡</Box>
+          Finacly AI
+        </Typography>
+
+        {!isMobile ? (
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {navItems.map((item) => (
+              <Button
+                key={item.href}
+                color="inherit"
+                component={Link}
+                href={item.href}
+                sx={{
+                  fontWeight: isActive(item.href) ? 700 : 500,
+                  borderBottom: isActive(item.href) ? '2px solid white' : 'none',
+                  borderRadius: 0,
+                  pb: 1,
+                }}
+              >
+                {item.label}
+              </Button>
+            ))}
+            
+            {onThemeToggle && (
+              <IconButton color="inherit" onClick={onThemeToggle} sx={{ ml: 1 }}>
+                {currentTheme === 'dark' ? <Brightness7 /> : <Brightness4 />}
+              </IconButton>
+            )}
+          </Box>
+        ) : (
+          <IconButton color="inherit" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <MenuIcon />
+          </IconButton>
+        )}
+      </Toolbar>
+
+      {/* Mobile Menu - could be enhanced with Drawer */}
+      {isMobile && mobileMenuOpen && (
+        <Box sx={{ bgcolor: 'primary.dark', p: 2 }}>
+          {navItems.map((item) => (
+            <Button
+              key={item.href}
+              color="inherit"
+              component={Link}
+              href={item.href}
+              fullWidth
+              sx={{ justifyContent: 'flex-start', mb: 1 }}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              {item.label}
+            </Button>
+          ))}
+        </Box>
+      )}
+    </AppBar>
   );
 }

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { 
   Container, 
   Box, 
@@ -11,12 +14,10 @@ import {
   Card,
   CardContent,
   TextField,
-  AppBar,
-  Toolbar,
   Link as MuiLink,
   Chip,
-  Alert,
-  CircularProgress
+  CircularProgress,
+  Fade
 } from '@mui/material';
 import {
   Payment as StripeIcon,
@@ -27,58 +28,49 @@ import {
   Security as SecurityIcon,
   ArrowForward as ArrowIcon
 } from '@mui/icons-material';
-import Link from 'next/link';
+import Navigation from '@/components/Navigation';
+import { useThemeMode } from '@/app/theme-provider';
+import toast from 'react-hot-toast';
+
+const waitlistSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
+
+type WaitlistForm = z.infer<typeof waitlistSchema>;
 
 export default function Home() {
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { mode, toggleTheme } = useThemeMode();
+  
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<WaitlistForm>({
+    resolver: zodResolver(waitlistSchema),
+  });
 
-  async function handleWaitlist(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
+  async function onSubmit(data: WaitlistForm) {
+    const toastId = toast.loading('Joining waitlist...');
     
     try {
       const response = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(data),
       });
       
       if (response.ok) {
         setSubmitted(true);
-        setEmail('');
+        reset();
+        toast.success('You\'re on the list! We\'ll be in touch soon.', { id: toastId, duration: 5000 });
       } else {
-        setError('Failed to join waitlist. Please try again.');
+        toast.error('Failed to join waitlist. Please try again.', { id: toastId });
       }
     } catch (err) {
-      setError('Network error. Please try again.');
-    } finally {
-      setSubmitting(false);
+      toast.error('Network error. Please try again.', { id: toastId });
     }
   }
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Navigation */}
-      <AppBar position="static" elevation={2}>
-        <Toolbar>
-          <Typography variant="h5" component="div" sx={{ flexGrow: 1, fontWeight: 'bold' }}>
-            Finacly AI
-          </Typography>
-          <Button color="inherit" component={Link} href="/connect">
-            Connect
-          </Button>
-          <Button color="inherit" component={Link} href="/dashboard">
-            Dashboard
-          </Button>
-          <Button color="inherit" component={Link} href="/login">
-            Login
-          </Button>
-        </Toolbar>
-      </AppBar>
+      <Navigation onThemeToggle={toggleTheme} currentTheme={mode} />
 
       {/* Hero Section with Gradient */}
       <Box
@@ -253,54 +245,46 @@ export default function Home() {
             Be among the first to experience automated reconciliation. We'll notify you when we're ready.
           </Typography>
 
-          {submitted ? (
-            <Alert severity="success" sx={{ maxWidth: 500, mx: 'auto' }}>
-              <Typography variant="body1" fontWeight="medium">
-                ✅ You're on the list! We'll be in touch soon.
-              </Typography>
-            </Alert>
-          ) : (
-            <Box component="form" onSubmit={handleWaitlist} sx={{ maxWidth: 500, mx: 'auto' }}>
-              <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <TextField
-                  fullWidth
-                  type="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  sx={{ 
-                    bgcolor: 'white', 
-                    borderRadius: 1,
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': { borderColor: 'transparent' },
-                    }
-                  }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  size="large"
-                  disabled={submitting}
-                  sx={{ 
-                    bgcolor: 'secondary.main', 
-                    color: 'white', 
-                    px: 4,
-                    whiteSpace: 'nowrap',
-                    '&:hover': { bgcolor: 'secondary.dark' } 
-                  }}
-                  endIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <ArrowIcon />}
-                >
-                  {submitting ? 'Joining...' : 'Join Beta'}
-                </Button>
-              </Box>
-              {error && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {error}
-                </Alert>
-              )}
+          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ maxWidth: 500, mx: 'auto' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+              <TextField
+                {...register('email')}
+                fullWidth
+                type="email"
+                placeholder="you@company.com"
+                error={!!errors.email}
+                helperText={errors.email?.message}
+                sx={{ 
+                  bgcolor: 'white', 
+                  borderRadius: 1,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': { borderColor: 'transparent' },
+                  },
+                  '& .MuiFormHelperText-root': {
+                    bgcolor: 'transparent',
+                    color: 'white',
+                    fontWeight: 600,
+                  }
+                }}
+              />
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={isSubmitting}
+                sx={{ 
+                  bgcolor: 'secondary.main', 
+                  color: 'white', 
+                  px: 4,
+                  whiteSpace: 'nowrap',
+                  '&:hover': { bgcolor: 'secondary.dark' } 
+                }}
+                endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowIcon />}
+              >
+                {isSubmitting ? 'Joining...' : 'Join Beta'}
+              </Button>
             </Box>
-          )}
+          </Box>
         </Paper>
       </Container>
 
