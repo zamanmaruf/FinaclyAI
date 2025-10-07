@@ -1,0 +1,62 @@
+{
+  "recommendations": [
+    // Core TypeScript/JavaScript support (built-in + essential)
+    "ms-vscode.vscode-typescript-next",
+    
+    // Prisma - Essential for schema syntax and IntelliSense
+    "prisma.prisma",
+    
+    // Tailwind CSS - Critical for your UI components
+    "bradlc.vscode-tailwindcss",
+    
+    // Formatting - Essential for code consistency
+    "esbenp.prettier-vscode",
+    
+    // Linting - Basic ESLint support (lightweight)
+    "dbaeumer.vscode-eslint",
+    
+    // Docker - Since you use docker-compose.yml
+    "ms-azuretools.vscode-docker",
+    
+    // JSON support - For config files (built-in, but ensures proper formatting)
+    "ms-vscode.vscode-json"
+  ],
+  "unwantedRecommendations": [
+    // Heavy extensions that cause lag
+    "eamodio.gitlens",
+    "mikestead.dotenv",
+    "ms-vscode.vscode-json-languageservice",
+    "ms-vscode-remote.remote-containers",
+    "ms-vscode.live-server",
+    "ms-vscode.live-share",
+    
+    // Duplicate AI completion (Cursor already provides this)
+    "github.copilot",
+    "github.copilot-chat",
+    "amazonwebservices.aws-toolkit-vscode",
+    "ms-vscode.vscode-ai",
+    
+    // Secret scanners that choke on .env files
+    "trufflesecurity.trufflehog",
+    "aquasecurity.trivy-vscode-extension",
+    "ms-vscode.vscode-secrets",
+    
+    // Heavy language servers
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-vscode.vscode-go",
+    "rust-lang.rust-analyzer",
+    
+    // Redundant formatters
+    "ms-vscode.vscode-eslint-prettier",
+    "esbenp.prettier-vscode-eslint",
+    
+    // Unnecessary for this stack
+    "ms-vscode.vscode-java",
+    "ms-vscode.vscode-csharp",
+    "ms-vscode.vscode-cpp",
+    "ms-vscode.vscode-python",
+    "ms-vscode.vscode-r",
+    "ms-vscode.vscode-php"
+  ]
+}
