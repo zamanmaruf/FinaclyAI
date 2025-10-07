@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { qboGet } from '@/server/qbo/client';
-import { withQboAccess } from '@/server/qbo/store';
+import { pingCompany } from '@/server/qbo/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,19 +8,25 @@ export async function GET(request: NextRequest) {
 
     if (!realmId) {
       return NextResponse.json(
-        { ok: false, error: 'Missing realmId parameter' },
+        { ok: false, code: 'MISSING_REALM_ID', message: 'Missing realmId parameter' },
         { status: 400 }
       );
     }
 
-    const companyInfo = await qboGet<{ CompanyInfo: { CompanyName: string } }>(realmId, `companyinfo/${realmId}`);
-    const companyName = companyInfo.CompanyInfo.CompanyName;
-
-    return NextResponse.json({ ok: true, companyName });
+    const result = await pingCompany(realmId);
+    
+    if (result.ok) {
+      return NextResponse.json({ ok: true, realmId }, { status: 200 });
+    } else {
+      return NextResponse.json(
+        { ok: false, code: result.code, message: result.message },
+        { status: result.status }
+      );
+    }
   } catch (error) {
     console.error('QBO ping error:', error);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { ok: false, code: 'QBO_PING_ERROR', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

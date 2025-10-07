@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
         inserted: result.totalInserted,
         updated: result.totalUpdated,
       },
+      webhookFired: result.webhookFired,
       perAccount: result.perAccount,
     });
   } catch (error) {

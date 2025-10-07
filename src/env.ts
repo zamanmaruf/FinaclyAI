@@ -37,11 +37,19 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env)
 
+// Auth helper
+export const isAuthProtected = () => {
+  return env.SHARED_PASSWORD && env.SHARED_PASSWORD.length > 0
+}
+
 // Warn (do not crash) if optional Plaid redirect URI is not provided
 if (!env.PLAID_REDIRECT_URI) {
   console.warn('[env] PLAID_REDIRECT_URI is not set; Plaid OAuth redirects may be disabled in sandbox.');
 }
 
-if (!env.SHARED_PASSWORD) {
-  console.warn('[env] SHARED_PASSWORD not set; using unsecured access for MVP unless provided.')
+// Log auth status at startup
+if (!isAuthProtected()) {
+  console.warn('[auth] SHARED_PASSWORD not set; access is OPEN for automated testing.')
+} else {
+  console.log('[auth] SHARED_PASSWORD set; access is PROTECTED.')
 }

@@ -143,3 +143,115 @@ export function qboGet<T>(realmId: string, path: string): Promise<T> {
 export function qboPost<T>(realmId: string, path: string, body: any): Promise<T> {
   return makeQboRequest<T>(realmId, 'POST', path, body);
 }
+
+// Structured result type for ping operations
+export interface PingResult {
+  ok: boolean;
+  status: number;
+  code?: string;
+  message?: string;
+}
+
+// Dedicated ping helper with token refresh and error normalization
+export async function pingCompany(realmId: string): Promise<PingResult> {
+  try {
+    const minorVersion = env.QBO_MINOR_VERSION || '73';
+    const baseUrl = getQboBaseUrl(env.INTUIT_ENV);
+    let url = `${baseUrl}/${realmId}/companyinfo/${realmId}?minorversion=${minorVersion}`;
+
+    return await withQboAccess(realmId, async (accessToken) => {
+      const headers = {
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      };
+
+      console.log(`QBO PING ${url}`);
+
+      try {
+        const response = await axios({
+          method: 'GET',
+          url,
+          headers,
+          timeout: 15000,
+        });
+        
+        console.log(`QBO PING ${response.status} - ${url}`);
+        return { ok: true, status: response.status };
+      } catch (error: any) {
+        const status = error.response?.status;
+        console.log(`QBO PING ${status} - ${url}`);
+        
+        // On 401 or 403, attempt token refresh and retry once
+        if (status === 401 || status === 403) {
+          console.log(`🔄 QBO ${status} - Attempting token refresh and retry`);
+          
+          try {
+            const currentToken = await getActiveToken(realmId);
+            if (!currentToken) {
+              return { ok: false, status: 401, code: 'QBO_NO_TOKEN', message: 'No token found for refresh' };
+            }
+
+            const newTokenData = await refreshToken(currentToken.refreshToken);
+            await updateToken(realmId, {
+              accessToken: newTokenData.accessToken,
+              refreshToken: newTokenData.refreshToken,
+              tokenType: newTokenData.tokenType,
+              expiresAt: newTokenData.expiresAt,
+            });
+
+            // Retry the request with the new token
+            const retryHeaders = { ...headers, 'Authorization': `Bearer ${newTokenData.accessToken}` };
+            
+            const retryResponse = await axios({
+              method: 'GET',
+              url,
+              headers: retryHeaders,
+              timeout: 15000,
+            });
+            
+            console.log(`QBO PING ${retryResponse.status} (retry) - ${url}`);
+            return { ok: true, status: retryResponse.status };
+          } catch (refreshError: any) {
+            console.error('Token refresh failed:', refreshError.message);
+            return { ok: false, status: 401, code: 'QBO_REFRESH_FAILED', message: 'Authentication failed after refresh attempt' };
+          }
+        }
+
+        // Handle specific QBO errors and normalize them
+        if (status === 400) {
+          const fault = error.response?.data?.Fault;
+          if (fault?.Error?.[0]?.Detail?.includes('Wrong Cluster') || 
+              fault?.Error?.[0]?.Detail?.includes('wrong cluster')) {
+            return { ok: false, status: 503, code: 'QBO_WRONG_CLUSTER', message: 'Company not accessible on current cluster' };
+          }
+          if (fault?.Error?.[0]?.Detail?.includes('Invalid realmId')) {
+            return { ok: false, status: 404, code: 'QBO_INVALID_REALM', message: 'Invalid company ID' };
+          }
+        }
+        
+        if (status === 403) {
+          return { ok: false, status: 403, code: 'QBO_FORBIDDEN', message: 'Access denied for company' };
+        }
+        
+        if (status === 404) {
+          return { ok: false, status: 404, code: 'QBO_NOT_FOUND', message: 'Company not found or not accessible' };
+        }
+        
+        if (status >= 500) {
+          return { ok: false, status: 502, code: 'QBO_SERVER_ERROR', message: 'Intuit servers experiencing issues' };
+        }
+
+        // Default error response
+        const message = error.response?.data?.Fault?.Error?.[0]?.Detail || 
+                       error.response?.data?.message || 
+                       error.message || 
+                       'Unknown error';
+        
+        return { ok: false, status: status || 500, code: 'QBO_UNKNOWN_ERROR', message };
+      }
+    });
+  } catch (error: any) {
+    console.error('QBO ping error:', error.message);
+    return { ok: false, status: 500, code: 'QBO_PING_ERROR', message: error.message };
+  }
+}

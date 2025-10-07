@@ -4,6 +4,8 @@ export async function matchPayoutsToBank({ dateToleranceDays = 2 }: { dateTolera
   let matchedCount = 0;
   let noMatchCount = 0;
   let ambiguousCount = 0;
+  let exceptionsCreated = 0;
+  const unmatchedPayouts: Array<{ id: string; amountMinor: bigint; currency: string }> = [];
 
   try {
     // Load recent StripePayout rows (last 60 days)
@@ -82,6 +84,12 @@ export async function matchPayoutsToBank({ dateToleranceDays = 2 }: { dateTolera
           },
         });
         noMatchCount++;
+        exceptionsCreated++;
+        unmatchedPayouts.push({
+          id: payout.id,
+          amountMinor: payoutNetMinor,
+          currency: payout.currency,
+        });
         console.log(`❌ No match for payout ${payout.id} (${payoutNetMinor} ${payout.currency})`);
       } else {
         // Multiple candidates - ambiguous match
@@ -104,16 +112,20 @@ export async function matchPayoutsToBank({ dateToleranceDays = 2 }: { dateTolera
           },
         });
         ambiguousCount++;
+        exceptionsCreated++;
         console.log(`⚠️  Ambiguous match for payout ${payout.id} (${payoutNetMinor} ${payout.currency}) - ${candidates.length} candidates`);
       }
     }
 
-    console.log(`Matching complete: ${matchedCount} matched, ${noMatchCount} no match, ${ambiguousCount} ambiguous`);
+    console.log(`Matching complete: ${matchedCount} matched, ${noMatchCount} no match, ${ambiguousCount} ambiguous, ${exceptionsCreated} exceptions`);
 
     return {
+      scanned: payouts.length,
       matchedCount,
       noMatchCount,
       ambiguousCount,
+      exceptionsCreated,
+      unmatchedPayouts: unmatchedPayouts.slice(0, 10), // Limit to first 10 for response size
     };
   } catch (error) {
     console.error('Error in matchPayoutsToBank:', error);

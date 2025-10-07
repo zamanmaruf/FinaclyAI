@@ -7,8 +7,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      matched: result.matchedCount,
-      exceptions: result.noMatchCount + result.ambiguousCount,
+      scanned: result.scanned,
+      matchedCount: result.matchedCount,
+      ambiguous: result.ambiguousCount,
+      exceptionsCreated: result.exceptionsCreated,
+      unmatchedPayouts: result.unmatchedPayouts,
     });
   } catch (error) {
     console.error('Matching error:', error);
