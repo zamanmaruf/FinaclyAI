@@ -1,122 +1,154 @@
-"use client";
-import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { 
-  Container, 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Container,
+  Box,
   Paper,
-  Alert
-} from '@mui/material'
-import { LockOutlined as LockIcon } from '@mui/icons-material'
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
+import { Lock as LockIcon } from '@mui/icons-material';
 
 export default function LoginPage() {
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const sp = useSearchParams()
-  const next = sp.get('next') || '/dashboard'
+  const router = useRouter();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    
+  // Check if we're in dev mode (no SHARED_PASSWORD set)
+  const isDev = !process.env.NEXT_PUBLIC_SHARED_PASSWORD;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
     try {
-      const res = await fetch('/api/login', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
-      })
-      
-      if (res.ok) {
-        router.replace(next)
+      });
+
+      if (response.ok) {
+        // Store session and redirect
+        sessionStorage.setItem('authenticated', 'true');
+        router.push('/dashboard');
       } else {
-        setError('Invalid password. Please try again.')
+        const data = await response.json();
+        setError(data.error || 'Invalid password');
       }
     } catch (err) {
-      setError('An error occurred. Please try again.')
+      setError('Login failed. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleDevModeAccess = () => {
+    sessionStorage.setItem('authenticated', 'true');
+    router.push('/dashboard');
+  };
 
   return (
-    <Box 
-      sx={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: '#f5f5f5',
-        backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        bgcolor: 'grey.100',
       }}
     >
       <Container maxWidth="sm">
-        <Paper elevation={6} sx={{ p: 4, borderRadius: 2 }}>
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Box 
-              sx={{ 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                bgcolor: 'primary.main', 
-                color: 'white',
+        <Paper elevation={8} sx={{ p: 4, borderRadius: 2 }}>
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box
+              sx={{
+                width: 64,
+                height: 64,
                 borderRadius: '50%',
-                width: 56,
-                height: 56,
-                mb: 2
+                bgcolor: 'primary.main',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                mx: 'auto',
+                mb: 2,
               }}
             >
-              <LockIcon fontSize="large" />
+              <LockIcon sx={{ fontSize: 32, color: 'white' }} />
             </Box>
             <Typography variant="h4" component="h1" fontWeight="bold" gutterBottom>
-              FinaclyAI
+              Finacly AI
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Sign in to access your reconciliation dashboard
+            <Typography variant="body2" color="text.secondary">
+              Automated Reconciliation Platform
             </Typography>
           </Box>
 
-          <Box component="form" onSubmit={onSubmit}>
-            <TextField
+          {isDev && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography variant="body2" fontWeight="medium" gutterBottom>
+                Developer Mode
+              </Typography>
+              <Typography variant="caption">
+                SHARED_PASSWORD is not set. Access is open for local testing.
+              </Typography>
+            </Alert>
+          )}
+
+          {isDev ? (
+            <Button
               fullWidth
-              type="password"
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              margin="normal"
-              required
-              autoFocus
-            />
-
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            <Button 
-              type="submit" 
-              fullWidth 
-              variant="contained" 
+              variant="contained"
               size="large"
-              disabled={loading || !password}
-              sx={{ mt: 3, py: 1.5 }}
+              onClick={handleDevModeAccess}
+              sx={{ py: 1.5 }}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              Enter Dashboard (Dev Mode)
             </Button>
-          </Box>
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <TextField
+                fullWidth
+                type="password"
+                label="Access Password"
+                placeholder="Enter shared password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                sx={{ mb: 3 }}
+                autoFocus
+              />
 
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="caption" color="text.secondary">
-              Automated Reconciliation for Stripe, Banks & QuickBooks
-            </Typography>
-          </Box>
+              {error && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                  {error}
+                </Alert>
+              )}
+
+              <Button
+                fullWidth
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={loading || !password}
+                sx={{ py: 1.5 }}
+                startIcon={loading ? <CircularProgress size={20} /> : null}
+              >
+                {loading ? 'Authenticating...' : 'Sign In'}
+              </Button>
+            </form>
+          )}
+
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 3 }}>
+            Protected access for authorized personnel only
+          </Typography>
         </Paper>
       </Container>
     </Box>

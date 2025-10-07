@@ -24,6 +24,7 @@ import {
   TextField,
   InputAdornment,
   TablePagination,
+  Pagination,
   Fade
 } from '@mui/material'
 import {
