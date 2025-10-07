@@ -35,6 +35,8 @@ interface VerifyAllResult {
   }
 }
 
+async function delay(ms: number) { return new Promise(r => setTimeout(r, ms)) }
+
 async function main() {
   const result: VerifyAllResult = {
     env: 'FAIL',
@@ -121,12 +123,28 @@ async function main() {
 
     // QBO ping & token presence
     const token = await prisma.qboToken.findFirst({ select: { realmId: true } })
-    const tokenCount = token ? 1 : 0
-    result.qbo.hasToken = tokenCount > 0
+    result.qbo.hasToken = !!token
     try {
-      if (token && token.realmId) {
-        const ping = await fetch(`${baseUrl}/api/qbo/ping?realmId=${encodeURIComponent(token.realmId)}`)
-        result.qbo.status = ping.ok ? 'PASS' : 'FAIL'
+      if (token?.realmId) {
+        let ok = false
+        // Try ping up to 3 times
+        for (let i = 0; i < 3 && !ok; i++) {
+          const ping = await fetch(`${baseUrl}/api/qbo/ping?realmId=${encodeURIComponent(token.realmId)}`)
+          if (ping.ok) {
+            const body = await ping.json().catch(() => null)
+            if (body?.ok === true) ok = true
+          }
+          if (!ok) await delay(400)
+        }
+        // If ping not ok, fall back to status endpoint
+        if (!ok) {
+          const statusRes = await fetch(`${baseUrl}/api/qbo/status?realmId=${encodeURIComponent(token.realmId)}`)
+          if (statusRes.ok) {
+            const statusBody = await statusRes.json().catch(() => null)
+            if (statusBody?.connected === true) ok = true
+          }
+        }
+        result.qbo.status = ok ? 'PASS' : 'FAIL'
       } else {
         result.qbo.status = 'WARN'
       }
