@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isAuthProtected } from '@/src/env'
+import { isAuthProtected } from './env'
 
 const PROTECTED_PATHS = ['/connect', '/dashboard']
 

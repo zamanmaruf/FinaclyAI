@@ -1,17 +1,31 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/server/db'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
 
 export async function GET() {
-  const txs = await prisma.plaidTransaction.findMany({
-    where: { matchedPayoutId: { not: null } },
-    orderBy: { date: 'desc' },
-    take: 10,
-    select: { id: true, name: true, amountMinor: true, currency: true, date: true },
-  })
-  const items = txs.map(t => ({
-    id: t.id,
-    description: `Matched ${Number(t.amountMinor)/100} ${t.currency} — ${t.name}`,
-    date: t.date.toISOString(),
-  }))
-  return NextResponse.json({ items })
+  try {
+    const recentMatches = await prisma.plaidTransaction.findMany({
+      where: { matchedPayoutId: { not: null } },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+      include: {
+        account: true,
+      },
+    })
+    
+    const items = recentMatches.map(tx => ({
+      id: tx.id,
+      description: `${tx.name || 'Bank Transaction'} - ${tx.currency} ${Number(tx.amountMinor) / 100}`,
+      date: tx.date.toISOString(),
+    }))
+    
+    return NextResponse.json({ items })
+  } catch (error) {
+    console.error('Recent matches error:', error)
+    return NextResponse.json({ items: [] })
+  } finally {
+    await prisma.$disconnect()
+  }
 }
+

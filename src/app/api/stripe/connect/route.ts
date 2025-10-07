@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-let SECRET_KEY: string | undefined
-
-export async function POST(request: NextRequest) {
-  const { secretKey } = await request.json()
-  if (!secretKey) return NextResponse.json({ ok: false, error: 'Missing secretKey' }, { status: 400 })
-  SECRET_KEY = secretKey
-  return NextResponse.json({ ok: true })
-}
-
-export async function GET() {
-  return NextResponse.json({ connected: Boolean(SECRET_KEY) })
+export async function GET(request: NextRequest) {
+  try {
+    // This would normally redirect to Stripe OAuth
+    // For now, just return a message
+    return NextResponse.json({ 
+      message: 'Stripe OAuth not implemented yet',
+      redirectUrl: 'https://connect.stripe.com/oauth/authorize?response_type=code&client_id=YOUR_CLIENT_ID&scope=read_write'
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to initiate Stripe connection' },
+      { status: 500 }
+    )
+  }
 }

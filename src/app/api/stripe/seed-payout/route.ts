@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripeClient } from '@/server/stripeClient';
-import { env } from '@/src/env';
+import { env } from '../../../../env';
 
 export async function POST(request: NextRequest) {
   try {

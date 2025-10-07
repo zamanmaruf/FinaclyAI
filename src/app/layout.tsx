@@ -1,9 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/react";
-
-// QBO startup log
-console.log('QBO ready: visit /api/qbo/connect to authorize');
+import AppThemeProvider from "./theme-provider";
 
 export const metadata: Metadata = {
   title: "Finacly AI — Automated Reconciliation for Stripe, Banks & QuickBooks",
@@ -65,11 +62,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/favicon.svg" />
-        <meta name="theme-color" content="#4f46e5" />
+        <meta name="theme-color" content="#2e7d32" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-screen bg-white">
-        {children}
-        <Analytics />
+      <body className="min-h-screen">
+        <AppThemeProvider>
+          {children}
+        </AppThemeProvider>
       </body>
     </html>
   );
