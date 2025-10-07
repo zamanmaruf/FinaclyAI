@@ -30,6 +30,9 @@ const envSchema = z.object({
   PLAID_REDIRECT_URI: z.string().url().optional(),
   PLAID_PRODUCTS: z.string().min(1),
   PLAID_COUNTRY_CODES: z.string().min(1),
+
+  // Minimal shared-password auth (optional)
+  SHARED_PASSWORD: z.string().optional(),
 })
 
 export const env = envSchema.parse(process.env)
@@ -37,4 +40,8 @@ export const env = envSchema.parse(process.env)
 // Warn (do not crash) if optional Plaid redirect URI is not provided
 if (!env.PLAID_REDIRECT_URI) {
   console.warn('[env] PLAID_REDIRECT_URI is not set; Plaid OAuth redirects may be disabled in sandbox.');
+}
+
+if (!env.SHARED_PASSWORD) {
+  console.warn('[env] SHARED_PASSWORD not set; using unsecured access for MVP unless provided.')
 }

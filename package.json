@@ -22,9 +22,13 @@
     "plaid:sync": "curl -s -X POST 'http://localhost:3000/api/plaid/transactions?days=30' | jq .",
     "match:payouts-bank": "curl -s -X POST http://localhost:3000/api/match/payouts-bank | jq .",
     "verify:day4": "tsx scripts/verify-day4.ts",
-    "verify-all": "tsx scripts/verify-all.ts"
+    "verify-all": "tsx scripts/verify-all.ts",
+    "verify:all:day5": "tsx scripts/verify-all-day5.ts"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.4",
     "@prisma/client": "^6.1.0",
     "@vercel/analytics": "^1.5.0",
     "axios": "^1.12.2",
