@@ -266,3 +266,60 @@ model QboPayment {
   @@index([realmId, txnDate])
   @@map("qbo_payments")
 }
+
+model BankItem {
+  id               String   @id @default(cuid())
+  institutionName  String
+  itemId           String   @unique
+  accessToken      String   @unique
+  createdAt        DateTime @default(now())
+
+  accounts         BankAccount[]
+}
+
+model BankAccount {
+  id               String   @id @default(cuid())
+  bankItemId       String
+  plaidAccountId   String   @unique
+  name             String
+  officialName     String?
+  mask             String?
+  subtype          String?
+  type             String?
+  currency         String    @db.VarChar(8)
+
+  createdAt        DateTime @default(now())
+
+  item             BankItem  @relation(fields: [bankItemId], references: [id], onDelete: Cascade)
+  transactions     PlaidTransaction[]
+
+  @@index([bankItemId])
+  @@index([plaidAccountId])
+}
+
+model PlaidTransaction {
+  id               String   @id // Plaid transaction_id
+  bankAccountId    String
+  date             DateTime
+  name             String
+  amountMinor      BigInt   // minor units
+  currency         String   @db.VarChar(8)
+  pending          Boolean
+  merchantName     String?
+  category         String?
+  counterpart      String?
+  isoCurrencyCode  String?  // raw field from Plaid if needed
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  account          BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  // Optional linking to Stripe payout if matched later:
+  matchedPayoutId  String?
+  // If you have StripePayout model name different, adjust FK
+  // We avoid FK here to keep this additive; linking can be by ID string
+  @@index([bankAccountId])
+  @@index([date])
+  @@index([amountMinor, currency])
+  @@index([matchedPayoutId])
+}
