@@ -38,6 +38,7 @@ interface VerifyAllResult {
     status: 'PASS' | 'FAIL'
     hasToken: boolean
     realmId?: string
+    companyName?: string
     pingAttempts: number
     error?: string
   }
@@ -224,6 +225,7 @@ async function main() {
           const body = await ping1.json()
           if (body?.ok === true) {
             pingOk = true
+            result.qbo.companyName = body.companyName
           }
         }
         
@@ -237,6 +239,7 @@ async function main() {
             const body = await ping2.json()
             if (body?.ok === true) {
               pingOk = true
+              result.qbo.companyName = body.companyName
             } else {
               result.qbo.error = body?.code || 'unknown_error'
             }

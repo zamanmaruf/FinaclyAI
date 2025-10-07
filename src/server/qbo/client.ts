@@ -150,6 +150,8 @@ export interface PingResult {
   status: number;
   code?: string;
   message?: string;
+  companyName?: string;
+  realmId?: string;
 }
 
 // Dedicated ping helper with token refresh and error normalization
@@ -176,7 +178,16 @@ export async function pingCompany(realmId: string): Promise<PingResult> {
         });
         
         console.log(`QBO PING ${response.status} - ${url}`);
-        return { ok: true, status: response.status };
+        
+        // Extract company name from response
+        const companyName = response.data?.CompanyInfo?.CompanyName || response.data?.CompanyInfo?.LegalName || 'Unknown';
+        
+        return { 
+          ok: true, 
+          status: response.status,
+          companyName,
+          realmId
+        };
       } catch (error: any) {
         const status = error.response?.status;
         console.log(`QBO PING ${status} - ${url}`);
@@ -210,7 +221,15 @@ export async function pingCompany(realmId: string): Promise<PingResult> {
             });
             
             console.log(`QBO PING ${retryResponse.status} (retry) - ${url}`);
-            return { ok: true, status: retryResponse.status };
+            
+            const companyName = retryResponse.data?.CompanyInfo?.CompanyName || retryResponse.data?.CompanyInfo?.LegalName || 'Unknown';
+            
+            return { 
+              ok: true, 
+              status: retryResponse.status,
+              companyName,
+              realmId
+            };
           } catch (refreshError: any) {
             console.error('Token refresh failed:', refreshError.message);
             return { ok: false, status: 401, code: 'QBO_REFRESH_FAILED', message: 'Authentication failed after refresh attempt' };

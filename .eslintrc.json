@@ -7,7 +7,19 @@
       {
         "patterns": [
           {
-            "group": ["*faker*", "*chance*", "*@tests/fixtures*", "*seed*", "*play-data*", "*mock*"],
+            "group": [
+              "faker",
+              "@faker-js/faker",
+              "casual",
+              "chance",
+              "**/mocks/**",
+              "**/mocks/*",
+              "*mock*",
+              "*faker*",
+              "*@tests/fixtures*",
+              "*seed*",
+              "*play-data*"
+            ],
             "message": "❌ PRODUCTION BUILD FAILURE: Mock/faker/seed imports are STRICTLY FORBIDDEN. Use only real test-mode API data from Stripe, Plaid sandbox, and QBO sandbox."
           }
         ]

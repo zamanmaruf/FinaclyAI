@@ -12,7 +12,10 @@
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep @a11y",
     "test:perf": "echo 'Lighthouse CI not configured yet'",
-    "ci:all": "npm run lint && npm run test:api && npm run verify-all"
+    "ci:all": "npm run lint && npm run test:api && npm run verify-all",
+    "stripe:seed:payout": "curl -X POST http://localhost:3000/api/stripe/seed-payout -H \"Authorization: Bearer ${SHARED_ADMIN_TOKEN:-test}\" -H \"Content-Type: application/json\"",
+    "plaid:link-token": "curl -X POST http://localhost:3000/api/plaid/link-token -H \"Content-Type: application/json\" -d '{\"userId\":\"test-user-1\"}'",
+    "plaid:sandbox-link": "curl -X POST http://localhost:3000/api/plaid/sandbox-link -H \"Authorization: Bearer ${SHARED_ADMIN_TOKEN:-test}\" -H \"Content-Type: application/json\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

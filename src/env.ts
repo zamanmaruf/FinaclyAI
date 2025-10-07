@@ -33,6 +33,9 @@ const envSchema = z.object({
 
   // Minimal shared-password auth (optional)
   SHARED_PASSWORD: z.string().optional(),
+  
+  // Admin token for test/dev endpoints (optional)
+  SHARED_ADMIN_TOKEN: z.string().optional(),
 })
 
 export const env = envSchema.parse(process.env)

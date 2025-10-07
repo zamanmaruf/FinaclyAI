@@ -51,10 +51,10 @@ export async function updateToken(realmId: string, token: {
 }
 
 export function needsRefresh(token: { expiresAt: Date }): boolean {
-  // Refresh if token expires within the next 2 minutes
-  const twoMinutesFromNow = new Date();
-  twoMinutesFromNow.setMinutes(twoMinutesFromNow.getMinutes() + 2);
-  return token.expiresAt <= twoMinutesFromNow;
+  // Refresh if token expires within the next 5 minutes
+  const fiveMinutesFromNow = new Date();
+  fiveMinutesFromNow.setMinutes(fiveMinutesFromNow.getMinutes() + 5);
+  return token.expiresAt <= fiveMinutesFromNow;
 }
 
 export function validateToken(token: {
