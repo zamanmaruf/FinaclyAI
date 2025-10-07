@@ -7,94 +7,233 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model StripePayout {
-  id          String   @id @default(cuid())
-  stripeId    String   @unique
-  amount      BigInt
-  currency    String
-  status      String
-  arrivalDate DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  @@map("stripe_payouts")
+// ===== Stripe Models =====
+
+model StripeAccount {
+  id              String            @id @db.VarChar(64)
+  defaultCurrency String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  balanceTxs      StripeBalanceTx[]
+  charges         StripeCharge[]
+  payouts         StripePayout[]
+  
+  @@map("stripe_accounts")
 }
 
 model StripeCharge {
-  id          String   @id @default(cuid())
-  stripeId    String   @unique
-  amount      BigInt
-  currency    String
-  status      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String         @id @db.VarChar(64)
+  accountId     String
+  customerId    String?        @db.VarChar(64)
+  paymentIntent String?        @db.VarChar(64)
+  amount        BigInt
+  currency      String         @db.VarChar(8)
+  fee           BigInt?
+  net           BigInt?
+  status        String         @db.VarChar(32)
+  createdAtUnix Int
+  createdAt     DateTime
+  description   String?
+  payoutId      String?        @db.VarChar(64)
+  metadataJson  Json?
+  updatedAt     DateTime       @updatedAt
+  account       StripeAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  payout        StripePayout?  @relation("PayoutCharges", fields: [payoutId], references: [id])
+
+  @@index([accountId])
+  @@index([payoutId])
+  @@index([createdAt])
   @@map("stripe_charges")
 }
+
+model StripePayout {
+  id                  String            @id @db.VarChar(64)
+  accountId           String
+  amount              BigInt
+  currency            String            @db.VarChar(8)
+  status              String            @db.VarChar(32)
+  arrivalDateUnix     Int
+  arrivalDate         DateTime
+  description         String?
+  statementDescriptor String?           @db.VarChar(255)
+  metadataJson        Json?
+  createdAtUnix       Int
+  createdAt           DateTime
+  updatedAt           DateTime          @updatedAt
+  charges             StripeCharge[]    @relation("PayoutCharges")
+  account             StripeAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([arrivalDate])
+  @@map("stripe_payouts")
+}
+
+model StripeBalanceTx {
+  id                String        @id @db.VarChar(64)
+  accountId         String
+  type              String        @db.VarChar(64)
+  amount            BigInt
+  currency          String        @db.VarChar(8)
+  fee               BigInt?
+  net               BigInt?
+  availableOnUnix   Int?
+  createdUnix       Int
+  createdAt         DateTime
+  reportingCategory String?       @db.VarChar(64)
+  sourceId          String?       @db.VarChar(64)
+  payoutId          String?       @db.VarChar(64)
+  rawJson           Json?
+  updatedAt         DateTime      @updatedAt
+  account           StripeAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([payoutId])
+  @@index([sourceId])
+  @@index([createdAt])
+  @@map("stripe_balance_txs")
+}
+
+model StripeException {
+  id         String    @id @default(cuid())
+  kind       String    @db.VarChar(64)
+  refId      String?   @db.VarChar(64)
+  message    String
+  data       Json?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([kind])
+  @@index([refId])
+  @@map("stripe_exceptions")
+}
+
+// ===== Plaid/Bank Models =====
 
 model BankItem {
   id              String        @id @default(cuid())
   institutionName String
   itemId          String        @unique
-  accessToken     String
+  accessToken     String        @unique
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   accounts        BankAccount[]
+  
   @@map("bank_items")
 }
 
 model BankAccount {
-  id            String            @id @default(cuid())
-  bankItemId    String
-  plaidAccountId String           @unique
-  name          String
-  officialName  String?
-  mask          String?
-  subtype       String?
-  type          String?
-  currency      String
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  bankItem      BankItem          @relation(fields: [bankItemId], references: [id], onDelete: Cascade)
-  transactions  PlaidTransaction[]
+  id             String             @id @default(cuid())
+  bankItemId     String
+  plaidAccountId String             @unique
+  name           String
+  officialName   String?
+  mask           String?
+  subtype        String?
+  type           String?
+  currency       String             @db.VarChar(8)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  bankItem       BankItem           @relation(fields: [bankItemId], references: [id], onDelete: Cascade)
+  transactions   PlaidTransaction[]
+
+  @@index([bankItemId])
+  @@index([plaidAccountId])
   @@map("bank_accounts")
 }
 
 model PlaidTransaction {
-  id              String    @id @default(cuid())
+  id              String      @id
   bankAccountId   String
   date            DateTime
   name            String
   amountMinor     BigInt
-  currency        String
-  pending         Boolean   @default(false)
+  currency        String      @db.VarChar(8)
+  pending         Boolean     @default(false)
   merchantName    String?
   category        String?
   counterpart     String?
   isoCurrencyCode String?
   matchedPayoutId String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
   bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([bankAccountId])
+  @@index([date])
+  @@index([amountMinor, currency])
+  @@index([matchedPayoutId])
   @@map("plaid_transactions")
 }
 
+// ===== QuickBooks Models =====
+
+model QboCompany {
+  id        String       @id
+  name      String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  invoices  QboInvoice[]
+  payments  QboPayment[]
+  tokens    QboToken?
+
+  @@map("qbo_companies")
+}
+
 model QboToken {
-  id           String   @id @default(cuid())
-  realmId      String   @unique
+  id           String     @id @default(cuid())
+  realmId      String     @unique
   accessToken  String
   refreshToken String
   tokenType    String
   expiresAt    DateTime
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  company      QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
   @@map("qbo_tokens")
 }
 
-model StripeException {
-  id      String   @id @default(cuid())
-  kind    String
-  refId   String
-  message String
-  data    Json
+model QboInvoice {
+  id          String     @id
+  realmId     String
+  docNumber   String?
+  customerRef String?
+  total       BigInt
+  balance     BigInt
+  currency    String     @db.VarChar(8)
+  txnDate     DateTime
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, txnDate])
+  @@index([realmId, balance])
+  @@map("qbo_invoices")
+}
+
+model QboPayment {
+  id          String     @id
+  realmId     String
+  customerRef String?
+  total       BigInt
+  currency    String     @db.VarChar(8)
+  txnDate     DateTime
+  appliedTo   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  company     QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+
+  @@index([realmId, txnDate])
+  @@map("qbo_payments")
+}
+
+// ===== Waitlist =====
+
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
   createdAt DateTime @default(now())
-  @@map("stripe_exceptions")
+  source    String?
+
+  @@map("waitlist_signups")
 }

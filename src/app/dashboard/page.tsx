@@ -1,6 +1,7 @@
 "use client";
 import useSWR from 'swr'
 import { useState } from 'react'
+import Link from 'next/link'
 import { 
   Container, 
   Box, 
@@ -20,7 +21,9 @@ import {
   CircularProgress,
   Alert,
   IconButton,
-  Tooltip
+  Tooltip,
+  AppBar,
+  Toolbar
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -88,6 +91,21 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+      {/* Navigation */}
+      <AppBar position="static" elevation={2}>
+        <Toolbar>
+          <Typography variant="h5" component={Link} href="/" sx={{ flexGrow: 1, fontWeight: 'bold', textDecoration: 'none', color: 'inherit' }}>
+            Finacly AI
+          </Typography>
+          <Button color="inherit" component={Link} href="/connect">
+            Connect
+          </Button>
+          <Button color="inherit" component={Link} href="/dashboard">
+            Dashboard
+          </Button>
+        </Toolbar>
+      </AppBar>
+
       {/* Header */}
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 3, px: 3, boxShadow: 2 }}>
         <Container maxWidth="lg">

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react'
+import Link from 'next/link'
 import { 
   Container, 
   Box, 
@@ -13,14 +14,16 @@ import {
   TextField,
   Alert,
   CircularProgress,
-  Divider
+  Divider,
+  AppBar,
+  Toolbar
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
   AccountBalance as BankIcon,
   Payment as StripeIcon,
   Assessment as QboIcon
-} from '@mui/icons-material'
+} from '@mui/material-icons'
 
 export default function ConnectPage() {
   const [stripeKey, setStripeKey] = useState('')
@@ -78,6 +81,21 @@ export default function ConnectPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+      {/* Navigation */}
+      <AppBar position="static" elevation={2}>
+        <Toolbar>
+          <Typography variant="h5" component={Link} href="/" sx={{ flexGrow: 1, fontWeight: 'bold', textDecoration: 'none', color: 'inherit' }}>
+            Finacly AI
+          </Typography>
+          <Button color="inherit" component={Link} href="/connect">
+            Connect
+          </Button>
+          <Button color="inherit" component={Link} href="/dashboard">
+            Dashboard
+          </Button>
+        </Toolbar>
+      </AppBar>
+
       {/* Header */}
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 3, px: 3, boxShadow: 2 }}>
         <Container maxWidth="lg">
