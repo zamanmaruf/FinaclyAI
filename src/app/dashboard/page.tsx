@@ -36,7 +36,7 @@ import {
 } from '@mui/icons-material'
 import Navigation from '@/components/Navigation'
 import { useThemeMode } from '@/app/theme-provider'
-import LoadingSkeleton from '@/components/LoadingSkeleton'
+import { DashboardSkeleton } from '@/components/LoadingSkeleton'
 import toast from 'react-hot-toast'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -152,7 +152,7 @@ export default function DashboardPage() {
           </Container>
         </Box>
         <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
-          <LoadingSkeleton variant="rectangular" height={400} />
+          <DashboardSkeleton />
         </Container>
       </Box>
     )
