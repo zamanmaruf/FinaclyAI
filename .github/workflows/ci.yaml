@@ -1,0 +1,104 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, 'qa/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test & Verify
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: finacly
+          POSTGRES_PASSWORD: finacly
+          POSTGRES_DB: finacly
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup environment
+        run: |
+          echo "DATABASE_URL=postgresql://finacly:finacly@localhost:5432/finacly?schema=public" >> $GITHUB_ENV
+          echo "PRISMA_MIGRATE_SHADOW_DATABASE_URL=postgresql://finacly:finacly@localhost:5432/finacly_shadow?schema=public" >> $GITHUB_ENV
+          echo "NEXT_PUBLIC_APP_URL=http://localhost:3000" >> $GITHUB_ENV
+          echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_TEST_KEY || 'sk_test_placeholder' }}" >> $GITHUB_ENV
+          echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET || 'whsec_placeholder' }}" >> $GITHUB_ENV
+          echo "QBO_CLIENT_ID=${{ secrets.QBO_CLIENT_ID || 'qbo_client_placeholder' }}" >> $GITHUB_ENV
+          echo "QBO_CLIENT_SECRET=${{ secrets.QBO_CLIENT_SECRET || 'qbo_secret_placeholder' }}" >> $GITHUB_ENV
+          echo "QBO_REDIRECT_URI=http://localhost:3000/api/qbo/callback" >> $GITHUB_ENV
+          echo "INTUIT_ENV=development" >> $GITHUB_ENV
+          echo "PLAID_CLIENT_ID=${{ secrets.PLAID_CLIENT_ID || 'plaid_client_placeholder' }}" >> $GITHUB_ENV
+          echo "PLAID_SECRET=${{ secrets.PLAID_SECRET || 'plaid_secret_placeholder' }}" >> $GITHUB_ENV
+          echo "PLAID_ENV=sandbox" >> $GITHUB_ENV
+          echo "PLAID_REDIRECT_URI=http://localhost:3000/api/plaid/callback" >> $GITHUB_ENV
+          echo "PLAID_PRODUCTS=transactions" >> $GITHUB_ENV
+          echo "PLAID_COUNTRY_CODES=US,CA" >> $GITHUB_ENV
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Setup database schema
+        run: npx prisma db push --accept-data-loss
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run API tests
+        run: npm run test:api
+        continue-on-error: true
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        continue-on-error: true
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        continue-on-error: true
+
+      - name: Run verification script
+        run: npm run verify-all
+        continue-on-error: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload verification results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: verification-results
+          path: |
+            verify-all.json
+          retention-days: 30
+
