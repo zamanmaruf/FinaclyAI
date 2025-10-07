@@ -21,7 +21,8 @@
     "plaid:sandbox-link": "curl -s -X POST http://localhost:3000/api/plaid/sandbox-link | jq .",
     "plaid:sync": "curl -s -X POST 'http://localhost:3000/api/plaid/transactions?days=30' | jq .",
     "match:payouts-bank": "curl -s -X POST http://localhost:3000/api/match/payouts-bank | jq .",
-    "verify:day4": "tsx scripts/verify-day4.ts"
+    "verify:day4": "tsx scripts/verify-day4.ts",
+    "verify-all": "tsx scripts/verify-all.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
