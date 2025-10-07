@@ -1,0 +1,17 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["*faker*", "*chance*", "*@tests/fixtures*", "*seed*", "*play-data*", "*mock*"],
+            "message": "❌ PRODUCTION BUILD FAILURE: Mock/faker/seed imports are STRICTLY FORBIDDEN. Use only real test-mode API data from Stripe, Plaid sandbox, and QBO sandbox."
+          }
+        ]
+      }
+    ]
+  }
+}
+
