@@ -126,12 +126,7 @@ export default function AppThemeProvider({ children }: { children: React.ReactNo
     localStorage.setItem('theme-mode', newMode);
   };
 
-  const theme = getTheme(mode);
-
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return null;
-  }
+  const theme = getTheme(mounted ? mode : 'light');
 
   return (
     <ThemeContext.Provider value={{ mode, toggleTheme }}>
