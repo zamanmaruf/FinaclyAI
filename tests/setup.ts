@@ -1,11 +1,14 @@
-// Test setup file for Vitest
-import { beforeAll, afterAll } from 'vitest'
+import { beforeAll, afterAll } from 'vitest';
 
-beforeAll(() => {
-  // Setup code before all tests
-})
+// Setup runs before all tests
+beforeAll(async () => {
+  // Ensure environment variables are loaded
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL not set - cannot run tests');
+  }
+});
 
-afterAll(() => {
-  // Cleanup code after all tests
-})
-
+// Cleanup runs after all tests
+afterAll(async () => {
+  // Any cleanup if needed
+});

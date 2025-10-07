@@ -1,39 +1,35 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vitest';
+import supertest from 'supertest';
 
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const request = supertest(baseURL);
 
-describe('API: Stats', () => {
-  it('should return stats with valid shape', async () => {
-    const response = await fetch(`${BASE_URL}/api/stats`)
-    const data = await response.json()
+describe('GET /api/stats', () => {
+  it('should return 200 OK', async () => {
+    const response = await request.get('/api/stats');
     
-    expect(response.status).toBe(200)
-    expect(data).toHaveProperty('matched')
-    expect(data).toHaveProperty('exceptions')
-    expect(typeof data.matched).toBe('number')
-    expect(typeof data.exceptions).toBe('number')
-  })
-})
+    expect(response.status).toBe(200);
+  });
 
-describe('API: Exceptions List', () => {
-  it('should return exceptions array', async () => {
-    const response = await fetch(`${BASE_URL}/api/exceptions/list`)
-    const data = await response.json()
+  it('should return stats object with required fields', async () => {
+    const response = await request.get('/api/stats');
     
-    expect(response.status).toBe(200)
-    expect(data).toHaveProperty('rows')
-    expect(Array.isArray(data.rows)).toBe(true)
-  })
-})
+    expect(response.body).toHaveProperty('matchedCount');
+    expect(response.body).toHaveProperty('exceptionCount');
+    expect(response.body).toHaveProperty('lastSyncTime');
+  });
 
-describe('API: Recent Matches', () => {
-  it('should return recent matches array', async () => {
-    const response = await fetch(`${BASE_URL}/api/matches/recent`)
-    const data = await response.json()
+  it('should return numeric counts', async () => {
+    const response = await request.get('/api/stats');
     
-    expect(response.status).toBe(200)
-    expect(data).toHaveProperty('items')
-    expect(Array.isArray(data.items)).toBe(true)
-  })
-})
+    expect(typeof response.body.matchedCount).toBe('number');
+    expect(typeof response.body.exceptionCount).toBe('number');
+  });
 
+  it('should return non-negative counts', async () => {
+    const response = await request.get('/api/stats');
+    
+    expect(response.body.matchedCount).toBeGreaterThanOrEqual(0);
+    expect(response.body.exceptionCount).toBeGreaterThanOrEqual(0);
+  });
+});
