@@ -33,3 +33,8 @@ const envSchema = z.object({
 })
 
 export const env = envSchema.parse(process.env)
+
+// Warn (do not crash) if optional Plaid redirect URI is not provided
+if (!env.PLAID_REDIRECT_URI) {
+  console.warn('[env] PLAID_REDIRECT_URI is not set; Plaid OAuth redirects may be disabled in sandbox.');
+}
