@@ -114,6 +114,7 @@ model BankItem {
   institutionName String
   itemId          String        @unique
   accessToken     String        @unique
+  syncCursor      String?       // Plaid transactions/sync cursor for idempotent incremental sync
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   accounts        BankAccount[]
