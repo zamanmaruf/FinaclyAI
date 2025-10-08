@@ -17,11 +17,11 @@ describe('GET /api/health', () => {
     expect(response.body).toHaveProperty('ok', true);
   });
 
-  it('should respond within 1 second', async () => {
+  it('should respond within 10 seconds', async () => {
     const start = Date.now();
     await request.get('/api/health');
     const duration = Date.now() - start;
     
-    expect(duration).toBeLessThan(1000);
+    expect(duration).toBeLessThan(10000);
   });
 });

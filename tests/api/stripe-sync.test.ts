@@ -15,7 +15,7 @@ describe('POST /api/stripe/sync', () => {
     const response = await request.post('/api/stripe/sync');
     
     expect(response.body).toHaveProperty('ok');
-    expect(response.body).toHaveProperty('message');
+    expect(response.body).toHaveProperty('charges');
   });
 
   it('should be idempotent (second call returns same data)', async () => {

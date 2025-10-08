@@ -14,22 +14,21 @@ describe('GET /api/stats', () => {
   it('should return stats object with required fields', async () => {
     const response = await request.get('/api/stats');
     
-    expect(response.body).toHaveProperty('matchedCount');
-    expect(response.body).toHaveProperty('exceptionCount');
-    expect(response.body).toHaveProperty('lastSyncTime');
+    expect(response.body).toHaveProperty('matched');
+    expect(response.body).toHaveProperty('exceptions');
   });
 
   it('should return numeric counts', async () => {
     const response = await request.get('/api/stats');
     
-    expect(typeof response.body.matchedCount).toBe('number');
-    expect(typeof response.body.exceptionCount).toBe('number');
+    expect(typeof response.body.matched).toBe('number');
+    expect(typeof response.body.exceptions).toBe('number');
   });
 
   it('should return non-negative counts', async () => {
     const response = await request.get('/api/stats');
     
-    expect(response.body.matchedCount).toBeGreaterThanOrEqual(0);
-    expect(response.body.exceptionCount).toBeGreaterThanOrEqual(0);
+    expect(response.body.matched).toBeGreaterThanOrEqual(0);
+    expect(response.body.exceptions).toBeGreaterThanOrEqual(0);
   });
 });

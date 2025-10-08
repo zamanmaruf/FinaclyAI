@@ -14,16 +14,17 @@ describe('GET /api/exceptions/list', () => {
   it('should return array of exceptions', async () => {
     const response = await request.get('/api/exceptions/list');
     
-    expect(Array.isArray(response.body)).toBe(true);
+    expect(response.body).toHaveProperty('rows');
+    expect(Array.isArray(response.body.rows)).toBe(true);
   });
 
   it('should return exceptions with required fields', async () => {
     const response = await request.get('/api/exceptions/list');
     
-    if (response.body.length > 0) {
-      const exception = response.body[0];
+    if (response.body.rows.length > 0) {
+      const exception = response.body.rows[0];
       expect(exception).toHaveProperty('id');
-      expect(exception).toHaveProperty('type');
+      expect(exception).toHaveProperty('kind');
       expect(exception).toHaveProperty('createdAt');
     }
   });
@@ -32,8 +33,9 @@ describe('GET /api/exceptions/list', () => {
     const response = await request.get('/api/exceptions/list?limit=5');
     
     expect(response.status).toBe(200);
-    expect(Array.isArray(response.body)).toBe(true);
-    expect(response.body.length).toBeLessThanOrEqual(5);
+    expect(response.body).toHaveProperty('rows');
+    expect(Array.isArray(response.body.rows)).toBe(true);
+    expect(response.body.rows.length).toBeLessThanOrEqual(5);
   });
 });
 
