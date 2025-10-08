@@ -4,7 +4,7 @@ import { AppBar, Toolbar, Typography, Button, Box, IconButton, useTheme, useMedi
 import { Brightness4, Brightness7, Menu as MenuIcon } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface NavigationProps {
   onThemeToggle?: () => void;
@@ -16,6 +16,11 @@ export default function Navigation({ onThemeToggle, currentTheme = 'light' }: Na
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   const navItems = [
     { label: 'Home', href: '/' },

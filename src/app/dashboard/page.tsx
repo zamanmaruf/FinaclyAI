@@ -65,9 +65,19 @@ export default function DashboardPage() {
   const [fixingIds, setFixingIds] = useState<Set<string>>(new Set())
   const { mode, toggleTheme } = useThemeMode()
   
-  const { data: stats, mutate: mutateStats, isLoading: statsLoading } = useSWR<{ matched: number; exceptions: number; lastSync?: string | null }>("/api/stats", fetcher, { refreshInterval: 10000 })
-  const { data: exceptions, mutate: mutateExceptions, isLoading: exceptionsLoading } = useSWR<{ rows: ExceptionRow[] }>("/api/exceptions/list", fetcher)
-  const { data: recent, isLoading: recentLoading } = useSWR<{ items: MatchItem[] }>("/api/matches/recent", fetcher)
+  const { data: stats, mutate: mutateStats, isLoading: statsLoading } = useSWR<{ matched: number; exceptions: number; lastSync?: string | null }>("/api/stats", fetcher, { 
+    refreshInterval: 10000,
+    refreshWhenHidden: false,
+    revalidateOnFocus: true
+  })
+  const { data: exceptions, mutate: mutateExceptions, isLoading: exceptionsLoading } = useSWR<{ rows: ExceptionRow[] }>("/api/exceptions/list", fetcher, {
+    refreshWhenHidden: false,
+    revalidateOnFocus: true
+  })
+  const { data: recent, isLoading: recentLoading } = useSWR<{ items: MatchItem[] }>("/api/matches/recent", fetcher, {
+    refreshWhenHidden: false,
+    revalidateOnFocus: true
+  })
 
   const ITEMS_PER_PAGE = 10
 
@@ -108,7 +118,16 @@ export default function DashboardPage() {
     }
   }
 
-  async function fixException(id: string) {
+  async function fixException(id: string, exData?: ExceptionRow) {
+    // Confirmation dialog
+    const amount = exData?.amountMinor && exData?.currency 
+      ? formatCurrency(exData.amountMinor, exData.currency)
+      : 'this amount';
+    
+    if (!confirm(`Fix this exception?\n\nThis will create a deposit in QuickBooks for ${amount}.\n\nClick OK to proceed.`)) {
+      return;
+    }
+    
     setFixingIds(prev => new Set(prev).add(id))
     const toastId = toast.loading('Fixing exception...')
     
@@ -161,6 +180,29 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
+      {/* Skip to main content for accessibility */}
+      <Box
+        component="a"
+        href="#main-content"
+        sx={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          transform: 'translateY(-100%)',
+          '&:focus': {
+            transform: 'translateY(0)',
+            zIndex: 9999,
+            bgcolor: 'primary.main',
+            color: 'white',
+            px: 3,
+            py: 1.5,
+            textDecoration: 'none',
+            fontWeight: 'bold'
+          }
+        }}
+      >
+        Skip to main content
+      </Box>
       <Navigation onThemeToggle={toggleTheme} currentTheme={mode} />
 
       {/* Header */}
@@ -194,7 +236,7 @@ export default function DashboardPage() {
         </Container>
       </Box>
 
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }} id="main-content">
         {/* Stats Cards */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={4}>
@@ -349,8 +391,9 @@ export default function DashboardPage() {
                                 <IconButton 
                                   size="small" 
                                   color="primary"
-                                  onClick={() => fixException(ex.id)}
+                                  onClick={() => fixException(ex.id, ex)}
                                   disabled={fixingIds.has(ex.id)}
+                                  aria-label="Automatically fix this exception"
                                 >
                                   {fixingIds.has(ex.id) ? (
                                     <CircularProgress size={20} />
@@ -360,8 +403,14 @@ export default function DashboardPage() {
                                 </IconButton>
                               </span>
                             </Tooltip>
-                            <Tooltip title="View details">
-                              <IconButton size="small">
+                            <Tooltip title="View full exception details">
+                              <IconButton 
+                                size="small"
+                                aria-label="View full details for this exception"
+                                onClick={() => {
+                                  alert(`Exception Details:\n\nType: ${ex.kind}\nMessage: ${ex.message}\n\nFull data:\n${JSON.stringify(ex.data, null, 2)}`);
+                                }}
+                              >
                                 <VisibilityIcon />
                               </IconButton>
                             </Tooltip>

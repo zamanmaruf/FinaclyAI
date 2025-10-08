@@ -2,6 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import AppThemeProvider from "./theme-provider";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -74,7 +76,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`min-h-screen ${inter.className}`}>
         <AppThemeProvider>
-          {children}
+          <ErrorBoundary>
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                success: { duration: 3000, style: { background: '#10b981', color: '#fff' } },
+                error: { duration: 5000, style: { background: '#ef4444', color: '#fff' } },
+                loading: { style: { background: '#3b82f6', color: '#fff' } },
+              }}
+            />
+            {children}
+          </ErrorBoundary>
         </AppThemeProvider>
       </body>
     </html>

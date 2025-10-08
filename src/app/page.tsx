@@ -328,10 +328,10 @@ export default function Home() {
                 Legal
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <MuiLink href="#" color="grey.400" underline="hover">
+                <MuiLink href="/privacy" color="grey.400" underline="hover">
                   Privacy Policy
                 </MuiLink>
-                <MuiLink href="#" color="grey.400" underline="hover">
+                <MuiLink href="/terms" color="grey.400" underline="hover">
                   Terms of Service
                 </MuiLink>
               </Box>
