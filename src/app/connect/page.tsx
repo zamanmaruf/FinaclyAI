@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import useSWR from 'swr'
 import { 
   Container, 
   Box, 
@@ -36,10 +37,16 @@ const stripeSchema = z.object({
 
 type StripeForm = z.infer<typeof stripeSchema>;
 
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 export default function ConnectPage() {
   const [stripeConnected, setStripeConnected] = useState(false)
   const [plaidLoading, setPlaidLoading] = useState(false)
   const { mode, toggleTheme } = useThemeMode()
+  
+  // Fetch connection status
+  const { data: stats } = useSWR('/api/stats', fetcher);
+  const { data: qboStatus } = useSWR('/api/qbo/status', fetcher);
   
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<StripeForm>({
     resolver: zodResolver(stripeSchema),
@@ -138,10 +145,17 @@ export default function ConnectPage() {
                   sx={{ mb: 2 }}
                 />
 
-                {stripeConnected && (
+                {(stripeConnected || stats?.stripeConnected) && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
                     <CheckCircleIcon />
-                    <Typography variant="body2" fontWeight="medium">Connected ✓</Typography>
+                    <Typography variant="body2" fontWeight="medium">
+                      Connected ✓
+                      {stats?.stripeAccountId && (
+                        <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                          Account: {stats.stripeAccountId.slice(0, 8)}...
+                        </Typography>
+                      )}
+                    </Typography>
                   </Box>
                 )}
               </CardContent>
@@ -176,9 +190,23 @@ export default function ConnectPage() {
 
                 <Divider sx={{ my: 2 }} />
 
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  You'll be redirected to Intuit to authorize access
-                </Alert>
+                {qboStatus?.connected ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
+                    <CheckCircleIcon />
+                    <Typography variant="body2" fontWeight="medium">
+                      Connected ✓
+                      {qboStatus?.companyName && (
+                        <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                          {qboStatus.companyName}
+                        </Typography>
+                      )}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    You'll be redirected to Intuit to authorize access
+                  </Alert>
+                )}
 
                 <Typography variant="caption" color="text.secondary">
                   We use OAuth 2.0 for secure authentication. Your credentials are never stored.
@@ -215,9 +243,23 @@ export default function ConnectPage() {
 
                 <Divider sx={{ my: 2 }} />
 
-                <Alert severity="info" sx={{ mb: 2 }}>
-                  For testing, we'll connect a sandbox bank account
-                </Alert>
+                {stats?.plaidConnected ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'success.main' }}>
+                    <CheckCircleIcon />
+                    <Typography variant="body2" fontWeight="medium">
+                      Connected ✓
+                      {stats?.plaidInstitution && (
+                        <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                          {stats.plaidInstitution}
+                        </Typography>
+                      )}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    For testing, we'll connect a sandbox bank account
+                  </Alert>
+                )}
 
                 <Typography variant="caption" color="text.secondary">
                   Plaid supports 10,000+ banks with bank-level security

@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.info('Creating test payout via Stripe API');
+    logger.info('Creating sample payout via Stripe API');
 
-    // In Stripe test mode, we can create a test payout
+    // In Stripe test mode, we can create a sample payout
     // First, check balance
     const balance = await stripe.balance.retrieve();
     const availableBalance = balance.available.find(b => b.currency === 'usd');
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Create a test payout (minimum $10.00 = 1000 cents)
+    // Create a sample payout (minimum $10.00 = 1000 cents)
     const payout = await stripe.payouts.create({
       amount: 1000,
       currency: 'usd',
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       statement_descriptor: 'FINACLY TEST',
     });
 
-    logger.info('Test payout created', {
+    logger.info('Sample payout created', {
       payoutId: payout.id,
       amount: payout.amount,
       currency: payout.currency,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         status: payout.status,
         arrival_date: payout.arrival_date,
       },
-      message: 'Test payout created successfully. Run /api/stripe/sync to pull it into the database.',
+      message: 'Sample payout created successfully. Run /api/stripe/sync to pull it into the database.',
     });
   } catch (error: any) {
     logger.error('Stripe seed payout failed', { error });
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     if (errorMessage.includes('balance') || errorMessage.includes('insufficient')) {
       return NextResponse.json({
         error: errorCode,
-        message: 'Insufficient balance. Create test charges first or use Stripe CLI.',
+        message: 'Insufficient balance. Create sample charges first or use Stripe CLI.',
         tip: 'Run: stripe trigger payout.created',
       }, { status: 400 });
     }
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     if (errorMessage.includes('payout') && errorMessage.includes('not') && errorMessage.includes('enabled')) {
       return NextResponse.json({
         error: errorCode,
-        message: 'Payouts not enabled on this test account. Use Stripe CLI instead.',
+        message: 'Payouts not enabled on this account. Use Stripe CLI instead.',
         tip: 'Run: stripe trigger payout.created',
       }, { status: 400 });
     }

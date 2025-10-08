@@ -5,7 +5,7 @@ const prisma = new PrismaClient()
 
 export async function GET() {
   try {
-    // Test database connection
+    // Check database connection
     await prisma.$connect()
     await prisma.$queryRaw`SELECT 1`
     await prisma.$disconnect()

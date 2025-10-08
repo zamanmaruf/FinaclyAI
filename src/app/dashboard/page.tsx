@@ -286,11 +286,25 @@ export default function DashboardPage() {
             </Box>
 
             {!exceptions || filteredExceptions.length === 0 ? (
-              <Alert severity={searchTerm ? "info" : "success"}>
-                <Typography variant="body1">
-                  {searchTerm ? '🔍 No exceptions match your search' : '🎉 No exceptions! All transactions are reconciled.'}
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Box sx={{ fontSize: 64, mb: 2, opacity: 0.6 }}>
+                  {searchTerm ? '🔍' : '🎉'}
+                </Box>
+                <Typography variant="h6" fontWeight="medium" gutterBottom>
+                  {searchTerm ? 'No exceptions match your search' : 'No exceptions found'}
                 </Typography>
-              </Alert>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  {searchTerm 
+                    ? 'Try adjusting your search terms'
+                    : 'All transactions are reconciled. Run Sync to check for new exceptions.'
+                  }
+                </Typography>
+                {!searchTerm && (
+                  <Button variant="outlined" onClick={syncNow} disabled={syncing}>
+                    {syncing ? 'Syncing...' : 'Run Sync Now'}
+                  </Button>
+                )}
+              </Box>
             ) : (
               <>
                 <TableContainer>
@@ -385,11 +399,18 @@ export default function DashboardPage() {
             </Typography>
 
             {!recent || recent.items.length === 0 ? (
-              <Alert severity="info">
-                <Typography variant="body2">
-                  No matches yet. Run a sync to start matching transactions.
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Box sx={{ fontSize: 48, mb: 2, opacity: 0.6 }}>⚡</Box>
+                <Typography variant="h6" fontWeight="medium" gutterBottom>
+                  No matches yet
                 </Typography>
-              </Alert>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Connect your services and run a sync to start matching transactions automatically.
+                </Typography>
+                <Button variant="outlined" href="/connect">
+                  Go to Connect →
+                </Button>
+              </Box>
             ) : (
               <Table size="small">
                 <TableHead>

@@ -117,8 +117,20 @@ export default function AppThemeProvider({ children }: { children: React.ReactNo
     const saved = localStorage.getItem('theme-mode') as ThemeMode;
     if (saved) {
       setMode(saved);
+    } else {
+      // Check system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setMode(prefersDark ? 'dark' : 'light');
     }
   }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      // Update CSS custom properties and data attribute
+      document.documentElement.setAttribute('data-theme', mode);
+      document.body.className = mode === 'dark' ? 'dark' : '';
+    }
+  }, [mode, mounted]);
 
   const toggleTheme = () => {
     const newMode = mode === 'light' ? 'dark' : 'light';

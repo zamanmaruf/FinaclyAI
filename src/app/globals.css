@@ -2,11 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Enterprise Design System Variables */
+:root {
+  /* Colors - HSL format for better manipulation */
+  --bg: 0 0% 100%;
+  --card: 0 0% 100%;
+  --muted: 210 18% 97%;
+  --border: 214 32% 91%;
+  --ring: 142 76% 36%;
+  --primary: 142 76% 36%;
+  --primary-foreground: 144 70% 98%;
+  --accent: 221 89% 61%;
+  --destructive: 0 84% 60%;
+  --text: 222 47% 11%;
+  
+  /* Radii */
+  --radius-xs: 6px;
+  --radius: 12px;
+  --radius-lg: 20px;
+  
+  /* Shadows */
+  --shadow-card: 0 8px 24px rgba(16,24,40,.08);
+  --shadow-elevated: 0 12px 32px rgba(16,24,40,.12);
+}
+
+[data-theme="dark"] {
+  --bg: 222 47% 5%;
+  --card: 222 47% 7%;
+  --muted: 223 47% 11%;
+  --border: 215 25% 23%;
+  --text: 210 25% 96%;
+}
+
 /* Global tweaks */
 html, body, :root { height: 100%; }
 body { 
-  background-color: white; 
-  color: #111827; 
+  background-color: hsl(var(--bg)); 
+  color: hsl(var(--text)); 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Focus rings for accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

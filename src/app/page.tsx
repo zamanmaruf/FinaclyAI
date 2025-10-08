@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import useSWR from 'swr';
 import { 
   Container, 
   Box, 
@@ -38,9 +39,14 @@ const waitlistSchema = z.object({
 
 type WaitlistForm = z.infer<typeof waitlistSchema>;
 
+const fetcher = (url: string) => fetch(url).then(r => r.json());
+
 export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   const { mode, toggleTheme } = useThemeMode();
+  
+  // Fetch real stats data
+  const { data: stats } = useSWR('/api/stats', fetcher, { refreshInterval: 30000 });
   
   const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<WaitlistForm>({
     resolver: zodResolver(waitlistSchema),
@@ -152,7 +158,11 @@ export default function Home() {
                 Finacly AI
               </Typography>
               <Chip 
-                label="127 matched / 0 errors" 
+                label={
+                  stats?.matched && stats?.exceptions !== undefined 
+                    ? `${stats.matched} matched / ${stats.exceptions} open`
+                    : 'Ready to sync'
+                }
                 sx={{ bgcolor: 'white', color: 'primary.main', fontWeight: 'bold', mb: 2 }} 
                 icon={<CheckIcon />}
               />

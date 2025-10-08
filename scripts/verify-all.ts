@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 
 import { PrismaClient } from '@prisma/client'
+import { verifyNoMockData, verifyLandingPage, verifyConnectPage, verifyDashboardPage } from './verify-ui'
 
 const prisma = new PrismaClient()
 
@@ -70,6 +71,13 @@ interface VerifyAllResult {
     dashboard: boolean
     login: boolean
   }
+  uiCompliance: {
+    status: 'PASS' | 'FAIL'
+    noMockData: boolean
+    landingPage: boolean
+    connectPage: boolean
+    dashboardPage: boolean
+  }
   overall: string
 }
 
@@ -85,6 +93,7 @@ async function main() {
     matching: { status: 'FAIL', scanned: 0, matchedCount: 0, ambiguous: 0, exceptionsCreated: 0, unmatchedPayouts: 0 },
     apiRoutes: { status: 'FAIL', health: false, stripeSync: false, plaidCreateLinkToken: false, plaidSandboxLink: false, plaidTransactions: false, qboPing: false, matching: false, stats: false, exceptionsList: false, sync: false },
     frontendPages: { status: 'FAIL', landing: false, connect: false, dashboard: false, login: false },
+    uiCompliance: { status: 'FAIL', noMockData: false, landingPage: false, connectPage: false, dashboardPage: false },
     overall: 'VERIFICATION INCOMPLETE'
   }
 
@@ -319,6 +328,30 @@ async function main() {
       result.frontendPages.status = result.frontendPages.landing ? 'PASS' : 'FAIL'
     } catch (error) {
       console.error('Frontend pages check failed:', error)
+    }
+
+    // UI Compliance check
+    try {
+      const mockCheck = verifyNoMockData()
+      result.uiCompliance.noMockData = mockCheck.passed
+      
+      const landingCheck = verifyLandingPage()
+      result.uiCompliance.landingPage = landingCheck.passed
+      
+      const connectCheck = verifyConnectPage()
+      result.uiCompliance.connectPage = connectCheck.passed
+      
+      const dashboardCheck = verifyDashboardPage()
+      result.uiCompliance.dashboardPage = dashboardCheck.passed
+      
+      result.uiCompliance.status = (
+        result.uiCompliance.noMockData &&
+        result.uiCompliance.landingPage &&
+        result.uiCompliance.connectPage &&
+        result.uiCompliance.dashboardPage
+      ) ? 'PASS' : 'FAIL'
+    } catch (error) {
+      console.error('UI compliance check failed:', error)
     }
 
     // Overall status

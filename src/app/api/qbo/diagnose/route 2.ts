@@ -17,7 +17,7 @@ export async function GET() {
           "Go to https://developer.intuit.com/",
           "Sign in to your Intuit Developer account",
           "Navigate to your app dashboard",
-          "Look for 'Sandbox' or 'Test Data' section",
+          "Look for 'Sandbox' or 'Sample Data' section",
           "Create a test QuickBooks company"
         ]
       },
