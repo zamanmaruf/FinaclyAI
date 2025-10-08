@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getPlaidClient } from '@/server/plaidClient';
+import { plaidClient } from '@/server/plaidClient';
 import { env } from '@/env';
 import { Products, CountryCode } from 'plaid';
 
@@ -25,8 +25,6 @@ export async function POST(request: NextRequest) {
 
     const { userId, products, countryCodes } = validation.data;
 
-    const plaidClient = getPlaidClient();
-
     // Use provided products or fall back to env config
     const plaidProducts = (products || env.PLAID_PRODUCTS.split(','))
       .filter(p => p) as Products[];
@@ -36,7 +34,7 @@ export async function POST(request: NextRequest) {
       .filter(c => c) as CountryCode[];
 
     // Create link_token
-    const response = await plaidClient.linkTokenCreate({
+    const linkTokenRequest: any = {
       user: {
         client_user_id: userId,
       },
@@ -44,8 +42,14 @@ export async function POST(request: NextRequest) {
       products: plaidProducts,
       country_codes: plaidCountryCodes,
       language: 'en',
-      redirect_uri: env.PLAID_REDIRECT_URI || undefined,
-    });
+    };
+    
+    // Only include redirect_uri if configured in dashboard
+    if (env.PLAID_REDIRECT_URI) {
+      linkTokenRequest.redirect_uri = env.PLAID_REDIRECT_URI;
+    }
+    
+    const response = await plaidClient.linkTokenCreate(linkTokenRequest);
 
     return NextResponse.json({
       ok: true,
