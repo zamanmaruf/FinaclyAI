@@ -246,3 +246,23 @@ model WaitlistSignup {
 
   @@map("waitlist_signups")
 }
+
+// ===== Audit Logs =====
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @db.VarChar(64) // Future: actual user ID
+  ownerId   String?  @db.VarChar(64) // Multi-tenant support
+  action    String   @db.VarChar(128) // e.g., "STRIPE_SYNC", "QBO_DEPOSIT_CREATED"
+  resource  String?  @db.VarChar(256) // e.g., "payout:po_123", "exception:ex_456"
+  status    String   @db.VarChar(32) // "SUCCESS", "FAILURE", "PENDING"
+  metadata  Json?    // Additional context
+  ipAddress String?  @db.VarChar(45) // IPv4 or IPv6
+  userAgent String?  // Browser/client info
+  createdAt DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([action, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
