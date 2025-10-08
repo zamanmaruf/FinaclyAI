@@ -210,7 +210,10 @@ async function main() {
 
     // QBO ping with retry logic
     try {
-      const token = await prisma.qboToken.findFirst({ select: { realmId: true } })
+      const token = await prisma.qboToken.findFirst({ 
+        select: { realmId: true },
+        orderBy: { createdAt: 'desc' } // Get most recent token
+      })
       result.qbo.hasToken = !!token
       
       if (token?.realmId) {
