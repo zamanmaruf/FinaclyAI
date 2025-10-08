@@ -36,15 +36,15 @@ export function middleware(req: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   
-  // Content Security Policy - allow Plaid Link and Stripe
+  // Content Security Policy - allow Plaid Link, Stripe, and QuickBooks
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.plaid.com https://js.stripe.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
-    "connect-src 'self' https://sandbox.plaid.com https://api.stripe.com https://oauth.platform.intuit.com",
-    "frame-src https://cdn.plaid.com",
+    "connect-src 'self' https://sandbox.plaid.com https://production.plaid.com https://api.stripe.com https://oauth.platform.intuit.com https://sandbox-quickbooks.api.intuit.com https://quickbooks.api.intuit.com",
+    "frame-src 'self' https://cdn.plaid.com https://appcenter.intuit.com",
   ].join('; ');
   
   response.headers.set('Content-Security-Policy', csp);

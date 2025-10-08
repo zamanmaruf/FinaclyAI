@@ -12,12 +12,14 @@ datasource db {
 model StripeAccount {
   id              String            @id @db.VarChar(64)
   defaultCurrency String
+  ownerId         String?           @db.VarChar(64) // Multi-tenant support
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   balanceTxs      StripeBalanceTx[]
   charges         StripeCharge[]
   payouts         StripePayout[]
   
+  @@index([ownerId])
   @@map("stripe_accounts")
 }
 
@@ -99,11 +101,13 @@ model StripeException {
   refId      String?   @db.VarChar(64)
   message    String
   data       Json?
+  ownerId    String?   @db.VarChar(64) // Multi-tenant support
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 
   @@index([kind])
   @@index([refId])
+  @@index([ownerId])
   @@map("stripe_exceptions")
 }
 
@@ -115,10 +119,12 @@ model BankItem {
   itemId          String        @unique
   accessToken     String        @unique
   syncCursor      String?       // Plaid transactions/sync cursor for idempotent incremental sync
+  ownerId         String?       @db.VarChar(64) // Multi-tenant support
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   accounts        BankAccount[]
   
+  @@index([ownerId])
   @@map("bank_items")
 }
 
@@ -171,12 +177,14 @@ model PlaidTransaction {
 model QboCompany {
   id        String       @id
   name      String?
+  ownerId   String?      @db.VarChar(64) // Multi-tenant support
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   invoices  QboInvoice[]
   payments  QboPayment[]
   tokens    QboToken?
 
+  @@index([ownerId])
   @@map("qbo_companies")
 }
 
