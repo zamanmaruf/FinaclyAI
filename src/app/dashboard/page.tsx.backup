@@ -1,6 +1,6 @@
 "use client";
 import useSWR from 'swr'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { 
   Container, 
   Box, 
@@ -18,16 +18,14 @@ import {
   TableRow,
   Chip,
   CircularProgress,
+  Alert,
   IconButton,
   Tooltip,
   TextField,
   InputAdornment,
+  TablePagination,
   Pagination,
-  Fade,
-  Checkbox,
-  Menu,
-  MenuItem,
-  Drawer,
+  Fade
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -35,17 +33,11 @@ import {
   Error as ErrorIcon,
   Build as BuildIcon,
   Visibility as VisibilityIcon,
-  Search as SearchIcon,
-  Download as DownloadIcon,
-  Sort as SortIcon,
-  FilterList as FilterIcon,
+  Search as SearchIcon
 } from '@mui/icons-material'
 import Navigation from '@/components/Navigation'
 import { useThemeMode } from '@/app/theme-provider'
 import { DashboardSkeleton } from '@/components/LoadingSkeleton'
-import { ExceptionDetailModal } from '@/components/ui/ExceptionDetailModal'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
 
 const fetcher = (url: string) => fetch(url).then(r => r.json())
@@ -71,10 +63,6 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
   const [fixingIds, setFixingIds] = useState<Set<string>>(new Set())
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [selectedEx, setSelectedEx] = useState<ExceptionRow | null>(null)
-  const [sortBy, setSortBy] = useState<'date' | 'type' | 'amount'>('date')
-  const [filterAnchor, setFilterAnchor] = useState<null | HTMLElement>(null)
   const { mode, toggleTheme } = useThemeMode()
   
   const { data: stats, mutate: mutateStats, isLoading: statsLoading } = useSWR<{ matched: number; exceptions: number; lastSync?: string | null }>("/api/stats", fetcher, { 
@@ -93,29 +81,11 @@ export default function DashboardPage() {
 
   const ITEMS_PER_PAGE = 10
 
-  // Filter, sort, and paginate exceptions
-  const filteredExceptions = useMemo(() => {
-    let filtered = exceptions?.rows.filter(ex => 
-      ex.kind.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ex.message.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || []
-
-    // Sort
-    filtered = filtered.sort((a, b) => {
-      if (sortBy === 'date') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      } else if (sortBy === 'type') {
-        return a.kind.localeCompare(b.kind)
-      } else if (sortBy === 'amount') {
-        const aAmt = Number(a.amountMinor || 0)
-        const bAmt = Number(b.amountMinor || 0)
-        return bAmt - aAmt
-      }
-      return 0
-    })
-
-    return filtered
-  }, [exceptions, searchTerm, sortBy])
+  // Filter and paginate exceptions
+  const filteredExceptions = exceptions?.rows.filter(ex => 
+    ex.kind.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    ex.message.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || []
 
   const paginatedExceptions = filteredExceptions.slice(
     (page - 1) * ITEMS_PER_PAGE,
@@ -149,6 +119,7 @@ export default function DashboardPage() {
   }
 
   async function fixException(id: string, exData?: ExceptionRow) {
+    // Confirmation dialog
     const amount = exData?.amountMinor && exData?.currency 
       ? formatCurrency(exData.amountMinor, exData.currency)
       : 'this amount';
@@ -165,8 +136,8 @@ export default function DashboardPage() {
       
       if (response.ok) {
         toast.success('Exception resolved successfully!', { id: toastId })
+        // Optimistic update
         await Promise.all([mutateExceptions(), mutateStats()])
-        setSelectedEx(null) // Close modal if open
       } else {
         toast.error('Failed to fix exception', { id: toastId })
       }
@@ -181,92 +152,12 @@ export default function DashboardPage() {
     }
   }
 
-  async function fixBulk() {
-    if (selectedIds.size === 0) return
-    
-    if (!confirm(`Fix ${selectedIds.size} exceptions?\n\nThis will create deposits in QuickBooks for all selected exceptions.`)) {
-      return
-    }
-
-    const toastId = toast.loading(`Fixing ${selectedIds.size} exceptions...`)
-    let fixed = 0
-    let failed = 0
-
-    for (const id of selectedIds) {
-      try {
-        const response = await fetch(`/api/fix/payout?id=${encodeURIComponent(id)}`, { method: 'POST' })
-        if (response.ok) fixed++
-        else failed++
-      } catch {
-        failed++
-      }
-    }
-
-    if (failed === 0) {
-      toast.success(`✅ Fixed ${fixed} exceptions successfully`, { id: toastId })
-    } else {
-      toast.error(`Fixed ${fixed}, failed ${failed}`, { id: toastId })
-    }
-
-    setSelectedIds(new Set())
-    await Promise.all([mutateExceptions(), mutateStats()])
-  }
-
-  function exportToCSV() {
-    if (!filteredExceptions.length) {
-      toast.error('No exceptions to export')
-      return
-    }
-
-    const headers = ['ID', 'Type', 'Message', 'Amount', 'Currency', 'Created At']
-    const rows = filteredExceptions.map(ex => [
-      ex.id,
-      ex.kind,
-      ex.message.replace(/"/g, '""'), // Escape quotes
-      ex.amountMinor || '',
-      ex.currency || '',
-      new Date(ex.createdAt).toLocaleString()
-    ])
-
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `finacly-exceptions-${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-
-    toast.success(`Exported ${filteredExceptions.length} exceptions to CSV`)
-  }
-
   const formatCurrency = (amountMinor: string, currency: string) => {
     const amount = Number(amountMinor) / 100
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
     }).format(amount)
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedExceptions.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(paginatedExceptions.map(ex => ex.id)))
-    }
   }
 
   if (statsLoading || exceptionsLoading || recentLoading) {
@@ -289,7 +180,7 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ minHeight: '100vh' }}>
-      {/* Skip to main content */}
+      {/* Skip to main content for accessibility */}
       <Box
         component="a"
         href="#main-content"
@@ -312,7 +203,6 @@ export default function DashboardPage() {
       >
         Skip to main content
       </Box>
-      
       <Navigation onThemeToggle={toggleTheme} currentTheme={mode} />
 
       {/* Header */}
@@ -336,9 +226,8 @@ export default function DashboardPage() {
               sx={{ 
                 bgcolor: 'white', 
                 color: 'primary.main', 
-                '&:hover': { bgcolor: 'grey.100', transform: 'translateY(-2px)' },
-                fontWeight: 700,
-                transition: 'all 0.2s',
+                '&:hover': { bgcolor: 'grey.100' },
+                fontWeight: 700
               }}
             >
               {syncing ? 'Syncing...' : 'Sync Now'}
@@ -352,13 +241,7 @@ export default function DashboardPage() {
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={4}>
             <Fade in timeout={300}>
-              <Card 
-                elevation={3}
-                sx={{
-                  transition: 'all 0.2s',
-                  '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 }
-                }}
-              >
+              <Card elevation={3}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <CheckCircleIcon sx={{ color: 'success.main', mr: 1, fontSize: 32 }} />
@@ -376,13 +259,7 @@ export default function DashboardPage() {
 
           <Grid item xs={12} md={4}>
             <Fade in timeout={400}>
-              <Card 
-                elevation={3}
-                sx={{
-                  transition: 'all 0.2s',
-                  '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 }
-                }}
-              >
+              <Card elevation={3}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <ErrorIcon sx={{ color: 'error.main', mr: 1, fontSize: 32 }} />
@@ -400,22 +277,16 @@ export default function DashboardPage() {
 
           <Grid item xs={12} md={4}>
             <Fade in timeout={500}>
-              <Card 
-                elevation={3}
-                sx={{
-                  transition: 'all 0.2s',
-                  '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 }
-                }}
-              >
+              <Card elevation={3}>
                 <CardContent>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Last Sync
                   </Typography>
                   <Typography variant="h6" fontWeight="medium">
-                    {stats?.lastSync ? formatDistanceToNow(new Date(stats.lastSync), { addSuffix: true }) : 'Never'}
+                    {stats?.lastSync ? new Date(stats.lastSync).toLocaleString() : 'Never'}
                   </Typography>
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    Auto-refreshing when active
+                    Auto-refreshing every 10s
                   </Typography>
                 </CardContent>
               </Card>
@@ -437,89 +308,51 @@ export default function DashboardPage() {
                 </Typography>
               </Box>
               
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                <TextField
-                  size="small"
-                  placeholder="Search exceptions..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value)
-                    setPage(1)
-                  }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{ minWidth: 250 }}
-                />
-                
-                <Button
-                  size="small"
-                  startIcon={<SortIcon />}
-                  onClick={(e) => setFilterAnchor(e.currentTarget)}
-                >
-                  Sort: {sortBy}
-                </Button>
-                <Menu
-                  anchorEl={filterAnchor}
-                  open={Boolean(filterAnchor)}
-                  onClose={() => setFilterAnchor(null)}
-                >
-                  <MenuItem onClick={() => { setSortBy('date'); setFilterAnchor(null); }}>By Date</MenuItem>
-                  <MenuItem onClick={() => { setSortBy('type'); setFilterAnchor(null); }}>By Type</MenuItem>
-                  <MenuItem onClick={() => { setSortBy('amount'); setFilterAnchor(null); }}>By Amount</MenuItem>
-                </Menu>
-
-                <Button
-                  size="small"
-                  startIcon={<DownloadIcon />}
-                  onClick={exportToCSV}
-                  disabled={!filteredExceptions.length}
-                >
-                  Export CSV
-                </Button>
-
-                {selectedIds.size > 0 && (
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<BuildIcon />}
-                    onClick={fixBulk}
-                  >
-                    Fix {selectedIds.size} Selected
-                  </Button>
-                )}
-              </Box>
+              <TextField
+                size="small"
+                placeholder="Search exceptions..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setPage(1) // Reset to first page on search
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ minWidth: 250 }}
+              />
             </Box>
 
             {!exceptions || filteredExceptions.length === 0 ? (
-              <EmptyState
-                icon={searchTerm ? '🔍' : '🎉'}
-                title={searchTerm ? 'No exceptions match your search' : 'No exceptions found'}
-                message={searchTerm 
-                  ? 'Try adjusting your search terms or clearing filters'
-                  : 'All transactions are reconciled. Run Sync to check for new exceptions.'
-                }
-                actionLabel={!searchTerm ? 'Run Sync Now' : undefined}
-                onAction={!searchTerm ? syncNow : undefined}
-              />
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Box sx={{ fontSize: 64, mb: 2, opacity: 0.6 }}>
+                  {searchTerm ? '🔍' : '🎉'}
+                </Box>
+                <Typography variant="h6" fontWeight="medium" gutterBottom>
+                  {searchTerm ? 'No exceptions match your search' : 'No exceptions found'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  {searchTerm 
+                    ? 'Try adjusting your search terms'
+                    : 'All transactions are reconciled. Run Sync to check for new exceptions.'
+                  }
+                </Typography>
+                {!searchTerm && (
+                  <Button variant="outlined" onClick={syncNow} disabled={syncing}>
+                    {syncing ? 'Syncing...' : 'Run Sync Now'}
+                  </Button>
+                )}
+              </Box>
             ) : (
               <>
                 <TableContainer>
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'grey.100' }}>
-                        <TableCell padding="checkbox">
-                          <Checkbox
-                            checked={selectedIds.size === paginatedExceptions.length && paginatedExceptions.length > 0}
-                            indeterminate={selectedIds.size > 0 && selectedIds.size < paginatedExceptions.length}
-                            onChange={toggleSelectAll}
-                            aria-label="Select all exceptions on this page"
-                          />
-                        </TableCell>
                         <TableCell><strong>Date</strong></TableCell>
                         <TableCell><strong>Type</strong></TableCell>
                         <TableCell><strong>Details</strong></TableCell>
@@ -529,42 +362,17 @@ export default function DashboardPage() {
                     </TableHead>
                     <TableBody>
                       {paginatedExceptions.map((ex) => (
-                        <TableRow 
-                          key={ex.id} 
-                          hover 
-                          sx={{ 
-                            '&:hover': { bgcolor: 'action.hover', cursor: 'pointer' },
-                            '&:focus-within': { bgcolor: 'action.selected' }
-                          }}
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              setSelectedEx(ex)
-                            }
-                          }}
-                          onClick={() => setSelectedEx(ex)}
-                        >
-                          <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={selectedIds.has(ex.id)}
-                              onChange={() => toggleSelect(ex.id)}
-                              aria-label={`Select exception ${ex.kind}`}
-                            />
-                          </TableCell>
+                        <TableRow key={ex.id} hover sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
                           <TableCell>
                             <Typography variant="body2">
-                              {formatDistanceToNow(new Date(ex.createdAt), { addSuffix: true })}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
                               {new Date(ex.createdAt).toLocaleDateString()}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Chip 
-                              label={ex.kind.replace(/_/g, ' ')} 
+                              label={ex.kind} 
                               size="small" 
-                              color={ex.kind.includes('NO_MATCH') ? 'error' : ex.kind.includes('MULTI') ? 'warning' : 'default'}
+                              color={ex.kind.includes('NO_MATCH') ? 'error' : 'warning'}
                             />
                           </TableCell>
                           <TableCell>
@@ -577,16 +385,15 @@ export default function DashboardPage() {
                               </Typography>
                             ) : '—'}
                           </TableCell>
-                          <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                          <TableCell align="right">
                             <Tooltip title="Auto-fix this exception">
                               <span>
                                 <IconButton 
                                   size="small" 
                                   color="primary"
-                                  onClick={(e) => { e.stopPropagation(); fixException(ex.id, ex); }}
+                                  onClick={() => fixException(ex.id, ex)}
                                   disabled={fixingIds.has(ex.id)}
                                   aria-label="Automatically fix this exception"
-                                  sx={{ transition: 'all 0.15s', '&:hover': { transform: 'scale(1.1)' } }}
                                 >
                                   {fixingIds.has(ex.id) ? (
                                     <CircularProgress size={20} />
@@ -595,6 +402,17 @@ export default function DashboardPage() {
                                   )}
                                 </IconButton>
                               </span>
+                            </Tooltip>
+                            <Tooltip title="View full exception details">
+                              <IconButton 
+                                size="small"
+                                aria-label="View full details for this exception"
+                                onClick={() => {
+                                  alert(`Exception Details:\n\nType: ${ex.kind}\nMessage: ${ex.message}\n\nFull data:\n${JSON.stringify(ex.data, null, 2)}`);
+                                }}
+                              >
+                                <VisibilityIcon />
+                              </IconButton>
                             </Tooltip>
                           </TableCell>
                         </TableRow>
@@ -630,13 +448,18 @@ export default function DashboardPage() {
             </Typography>
 
             {!recent || recent.items.length === 0 ? (
-              <EmptyState
-                icon="⚡"
-                title="No matches yet"
-                message="Connect your services and run a sync to start matching transactions automatically."
-                actionLabel="Go to Connect"
-                actionHref="/connect"
-              />
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Box sx={{ fontSize: 48, mb: 2, opacity: 0.6 }}>⚡</Box>
+                <Typography variant="h6" fontWeight="medium" gutterBottom>
+                  No matches yet
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Connect your services and run a sync to start matching transactions automatically.
+                </Typography>
+                <Button variant="outlined" href="/connect">
+                  Go to Connect →
+                </Button>
+              </Box>
             ) : (
               <Table size="small">
                 <TableHead>
@@ -654,9 +477,6 @@ export default function DashboardPage() {
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {formatDistanceToNow(new Date(item.date), { addSuffix: true })}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
                           {new Date(item.date).toLocaleString()}
                         </Typography>
                       </TableCell>
@@ -671,16 +491,6 @@ export default function DashboardPage() {
           </Paper>
         </Fade>
       </Container>
-
-      {/* Exception Detail Modal */}
-      <ExceptionDetailModal
-        open={!!selectedEx}
-        exception={selectedEx}
-        onClose={() => setSelectedEx(null)}
-        onFix={fixException}
-        fixing={selectedEx ? fixingIds.has(selectedEx.id) : false}
-      />
     </Box>
   );
 }
-
