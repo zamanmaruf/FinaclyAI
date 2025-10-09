@@ -1,227 +1,254 @@
 import { plaidClient } from './plaidClient';
-import { db } from './db';
-import { env } from '@/env';
-
-export interface SyncResult {
-  totalTransactions: number;
-  insertedTransactions: number;
-  updatedTransactions: number;
-  perAccount: Array<{
-    accountId: string;
-    accountName: string;
-    transactions: number;
-  }>;
-}
+import { prisma } from './db';
+import { encrypt, decrypt } from './crypto';
 
 export async function ensureSandboxItem() {
-  // Check if we already have a sandbox item
-  const existingItem = await db.bankItem.findFirst();
+  // Check if a BankItem already exists
+  const existingItem = await prisma.bankItem.findFirst();
   if (existingItem) {
-    console.log(`Using existing sandbox item: ${existingItem.id}`);
     return existingItem;
   }
 
-  console.log('Creating new sandbox item...');
-
-  // Create public token for sandbox using direct API call
-  let publicTokenResponse;
   try {
-    const response = await fetch('https://sandbox.plaid.com/sandbox/public_token/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'PLAID-CLIENT-ID': env.PLAID_CLIENT_ID,
-        'PLAID-SECRET': env.PLAID_SECRET,
-        'PLAID-VERSION': '2020-09-14',
+    // Create sandbox public token
+    const publicTokenResponse = await plaidClient.sandboxPublicTokenCreate({
+      institution_id: 'ins_109508',
+      initial_products: ['transactions'],
+      options: {
+        override_username: 'user_good',
+        override_password: 'pass_good',
       },
-      body: JSON.stringify({
-        institution_id: 'ins_130347', // Chiphone Credit Union
-        initial_products: ['transactions'],
-      }),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Plaid API error: ${errorData.error_message || response.statusText}`);
+    const publicToken = publicTokenResponse.data.public_token;
+
+    // Exchange public token for access token
+    const tokenResponse = await plaidClient.itemPublicTokenExchange({
+      public_token: publicToken,
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+    const itemId = tokenResponse.data.item_id;
+
+    // Get accounts
+    const accountsResponse = await plaidClient.accountsGet({
+      access_token: accessToken,
+    });
+
+    // Encrypt access token
+    const accessTokenEncrypted = encrypt(accessToken);
+    
+    // Use hardcoded owner ID for single-tenant mode
+    const ownerId = '1';
+
+    // Create BankItem with both plaintext (deprecated) and encrypted tokens
+    const bankItem = await prisma.bankItem.create({
+      data: {
+        institutionName: 'Chase',
+        itemId,
+        accessToken, // Deprecated, kept for backward compatibility
+        accessTokenEncrypted,
+        ownerId,
+      },
+    });
+
+    // Create BankAccounts
+    for (const account of accountsResponse.data.accounts) {
+      await prisma.bankAccount.create({
+        data: {
+          bankItemId: bankItem.id,
+          plaidAccountId: account.account_id,
+          name: account.name,
+          officialName: account.official_name || null,
+          mask: account.mask || null,
+          subtype: account.subtype || null,
+          type: account.type || null,
+          currency: (account.balance?.iso_currency_code || 'USD').toUpperCase(),
+        },
+      });
     }
 
-    publicTokenResponse = await response.json();
-    console.log('Public token created successfully');
+    return bankItem;
   } catch (error) {
-    console.error('Error creating public token:', error);
-    throw new Error(`Failed to create public token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('Error creating sandbox item:', error);
+    throw error;
   }
-
-  // Exchange public token for access token
-  const exchangeResponse = await plaidClient.itemPublicTokenExchange({
-    public_token: publicTokenResponse.public_token,
-  });
-
-  const accessToken = exchangeResponse.access_token;
-  const itemId = exchangeResponse.item_id;
-
-  // Get item info
-  const itemResponse = await plaidClient.itemGet({
-    access_token: accessToken,
-  });
-
-  const institutionId = itemResponse.item.institution_id;
-  const institutionResponse = await plaidClient.institutionsGetById({
-    institution_id: institutionId!,
-    country_codes: ['US', 'CA'],
-  });
-
-  const institutionName = institutionResponse.institution.name;
-
-  // Create BankItem
-  const bankItem = await db.bankItem.create({
-    data: {
-      institutionName,
-      itemId,
-      accessToken,
-    },
-  });
-
-  // Get accounts
-  const accountsResponse = await plaidClient.accountsGet({
-    access_token: accessToken,
-  });
-
-  // Create BankAccount records
-  for (const account of accountsResponse.accounts) {
-    await db.bankAccount.create({
-      data: {
-        bankItemId: bankItem.id,
-        plaidAccountId: account.account_id,
-        name: account.name,
-        officialName: account.official_name || null,
-        mask: account.mask || null,
-        subtype: account.subtype || null,
-        type: account.type || null,
-        currency: (account.balances.iso_currency_code || 'USD').toUpperCase(),
-      },
-    });
-  }
-
-  console.log(`Created sandbox item with ${accountsResponse.accounts.length} accounts`);
-  return bankItem;
 }
 
-export async function syncTransactions({ days }: { days: number }): Promise<SyncResult> {
-  console.log(`Starting Plaid transaction sync for last ${days} days...`);
-
-  const result: SyncResult = {
-    totalTransactions: 0,
-    insertedTransactions: 0,
-    updatedTransactions: 0,
-    perAccount: [],
+/**
+ * Sync transactions using Plaid /transactions/sync API with cursor pagination
+ * This is the modern, recommended approach that handles real-time updates efficiently
+ */
+export async function syncTransactions({ days }: { days: number }) {
+  const results = {
+    totalInserted: 0,
+    totalUpdated: 0,
+    totalRemoved: 0,
+    webhookFired: false,
+    perAccount: [] as Array<{
+      accountId: string;
+      inserted: number;
+      updated: number;
+    }>,
   };
 
-  // Get all bank items
-  const bankItems = await db.bankItem.findMany({
-    include: {
-      accounts: true,
-    },
-  });
+  try {
+    const bankItems = await prisma.bankItem.findMany({
+      include: {
+        accounts: true,
+      },
+    });
 
-  if (bankItems.length === 0) {
-    console.log('No bank items found. Please create a sandbox item first.');
-    return result;
-  }
+    if (bankItems.length === 0) {
+      console.log('⚠️  No bank items found - please connect a bank account first');
+      return results;
+    }
 
-  for (const item of bankItems) {
-    console.log(`Syncing transactions for item: ${item.institutionName}`);
+    for (const item of bankItems) {
+      console.log(`Syncing transactions for item: ${item.itemId}`);
 
-    for (const account of item.accounts) {
+      // Decrypt access token before using it
+      const accessToken = item.accessTokenEncrypted 
+        ? decrypt(item.accessTokenEncrypted)
+        : item.accessToken; // Fallback to plaintext for backward compatibility
+
+      // In sandbox mode, fire webhook to generate test transactions if this is first sync
+      const hasExistingTransactions = await prisma.plaidTransaction.count({
+        where: {
+          bankAccount: {
+            bankItemId: item.id,
+          },
+        },
+      });
+
+      if (process.env.PLAID_ENV === 'sandbox' && hasExistingTransactions === 0) {
+        try {
+          console.log('🔥 Firing Plaid sandbox webhook to generate test transactions...');
+          await plaidClient.sandboxItemFireWebhook({
+            access_token: accessToken,
+            webhook_code: 'DEFAULT_UPDATE' as any,
+          });
+          results.webhookFired = true;
+          console.log('✅ Sandbox webhook fired - waiting 2s for data...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error: any) {
+          console.warn('Sandbox webhook fire failed (non-fatal):', error.message);
+        }
+      }
+
+      // Use transactions/sync API with cursor pagination
+      let cursor = item.syncCursor || undefined;
+      let hasMore = true;
+      let added: any[] = [];
+      let modified: any[] = [];
+      let removed: any[] = [];
+
       try {
-        console.log(`Syncing account: ${account.name} (${account.plaidAccountId})`);
+        // Fetch all updates since last sync using cursor pagination
+        while (hasMore) {
+          const syncResponse = await plaidClient.transactionsSync({
+            access_token: accessToken,
+            cursor,
+            count: 500, // Max per request
+          });
 
-        // Calculate start date
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-        const startDateStr = startDate.toISOString().split('T')[0];
+          added = added.concat(syncResponse.data.added);
+          modified = modified.concat(syncResponse.data.modified);
+          removed = removed.concat(syncResponse.data.removed);
 
-        // Get transactions
-        const transactionsResponse = await plaidClient.transactionsGet({
-          access_token: item.accessToken,
-          start_date: startDateStr,
-          end_date: new Date().toISOString().split('T')[0],
-          account_ids: [account.plaidAccountId],
-        });
-
-        let accountInserted = 0;
-        let accountUpdated = 0;
-
-        // Process transactions
-        for (const tx of transactionsResponse.transactions) {
-          try {
-            // Convert amount to BigInt minor units
-            const amountMinor = BigInt(Math.round(tx.amount * 100));
-            const currency = (tx.iso_currency_code || 'USD').toUpperCase();
-
-            // Prepare category string
-            const category = tx.category ? tx.category.join(', ') : null;
-
-            // Upsert transaction
-            const upsertResult = await db.plaidTransaction.upsert({
-              where: { id: tx.transaction_id },
-              update: {
-                date: new Date(tx.date),
-                name: tx.name,
-                amountMinor,
-                currency,
-                pending: tx.pending,
-                merchantName: tx.merchant_name || null,
-                category,
-                counterpart: tx.merchant_name || null,
-                isoCurrencyCode: tx.iso_currency_code || null,
-                updatedAt: new Date(),
-              },
-              create: {
-                id: tx.transaction_id,
-                bankAccountId: account.id,
-                date: new Date(tx.date),
-                name: tx.name,
-                amountMinor,
-                currency,
-                pending: tx.pending,
-                merchantName: tx.merchant_name || null,
-                category,
-                counterpart: tx.merchant_name || null,
-                isoCurrencyCode: tx.iso_currency_code || null,
-              },
-            });
-
-            if (upsertResult.createdAt.getTime() === upsertResult.updatedAt.getTime()) {
-              accountInserted++;
-            } else {
-              accountUpdated++;
-            }
-
-            result.totalTransactions++;
-          } catch (txError) {
-            console.error(`Error processing transaction ${tx.transaction_id}:`, txError);
-            // Continue with other transactions
-          }
+          hasMore = syncResponse.data.has_more;
+          cursor = syncResponse.data.next_cursor;
         }
 
-        result.insertedTransactions += accountInserted;
-        result.updatedTransactions += accountUpdated;
-
-        result.perAccount.push({
-          accountId: account.id,
-          accountName: account.name,
-          transactions: transactionsResponse.transactions.length,
+        // Update cursor for next sync (idempotency)
+        await prisma.bankItem.update({
+          where: { id: item.id },
+          data: { syncCursor: cursor },
         });
 
-        console.log(`Account ${account.name}: ${transactionsResponse.transactions.length} transactions (${accountInserted} new, ${accountUpdated} updated)`);
-      } catch (accountError) {
-        console.error(`Error syncing account ${account.name}:`, accountError);
-        // Continue with other accounts
+        console.log(`Plaid sync for ${item.itemId}: ${added.length} added, ${modified.length} modified, ${removed.length} removed`);
+
+        // Process added transactions
+        for (const transaction of added) {
+          const account = item.accounts.find(a => a.plaidAccountId === transaction.account_id);
+          if (!account) continue;
+
+          const amountMinor = BigInt(Math.round(transaction.amount * 100));
+          const currency = (transaction.iso_currency_code || 'USD').toUpperCase();
+
+          await prisma.plaidTransaction.upsert({
+            where: { id: transaction.transaction_id },
+            update: {
+              name: transaction.name,
+              amountMinor,
+              currency,
+              pending: transaction.pending,
+              merchantName: transaction.merchant_name || null,
+              category: transaction.personal_finance_category?.primary || null,
+              counterpart: transaction.counterparties?.[0]?.name || null,
+              isoCurrencyCode: transaction.iso_currency_code || null,
+              updatedAt: new Date(),
+            },
+            create: {
+              id: transaction.transaction_id,
+              bankAccountId: account.id,
+              date: new Date(transaction.date),
+              name: transaction.name,
+              amountMinor,
+              currency,
+              pending: transaction.pending,
+              merchantName: transaction.merchant_name || null,
+              category: transaction.personal_finance_category?.primary || null,
+              counterpart: transaction.counterparties?.[0]?.name || null,
+              isoCurrencyCode: transaction.iso_currency_code || null,
+            },
+          });
+
+          results.totalInserted++;
+        }
+
+        // Process modified transactions
+        for (const transaction of modified) {
+          const amountMinor = BigInt(Math.round(transaction.amount * 100));
+          const currency = (transaction.iso_currency_code || 'USD').toUpperCase();
+
+          await prisma.plaidTransaction.update({
+            where: { id: transaction.transaction_id },
+            data: {
+              name: transaction.name,
+              amountMinor,
+              currency,
+              pending: transaction.pending,
+              merchantName: transaction.merchant_name || null,
+              category: transaction.personal_finance_category?.primary || null,
+              counterpart: transaction.counterparties?.[0]?.name || null,
+              isoCurrencyCode: transaction.iso_currency_code || null,
+              updatedAt: new Date(),
+            },
+          });
+
+          results.totalUpdated++;
+        }
+
+        // Process removed transactions (soft delete or mark as removed)
+        for (const removed_tx of removed) {
+          await prisma.plaidTransaction.deleteMany({
+            where: { id: removed_tx.transaction_id },
+          });
+
+          results.totalRemoved++;
+        }
+      } catch (error: any) {
+        console.error(`Error syncing item ${item.itemId}:`, error.response?.data || error.message);
+        // Continue with other items
       }
     }
-  }
 
-  console.log(`Transaction sync complete: ${result.totalTransactions} total, ${result.insertedTransactions} inserted, ${result.updatedTransactions} updated`);
-  return result;
+    console.log(`✅ Plaid sync complete: ${results.totalInserted} inserted, ${results.totalUpdated} updated, ${results.totalRemoved} removed`);
+
+    return results;
+  } catch (error: any) {
+    console.error('Fatal error syncing transactions:', error);
+    throw error;
+  }
 }

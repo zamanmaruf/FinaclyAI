@@ -1,0 +1,153 @@
+name: Production Hardening CI
+
+on:
+  push:
+    branches: [main, qa/**]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test & Verify Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: finacly
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: finacly_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://finacly:devpassword@localhost:5432/finacly_test
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+      QBO_CLIENT_ID: ${{ secrets.QBO_CLIENT_ID }}
+      QBO_CLIENT_SECRET: ${{ secrets.QBO_CLIENT_SECRET }}
+      QBO_REDIRECT_URI: http://localhost:3000/api/qbo/callback
+      INTUIT_ENV: sandbox
+      PLAID_CLIENT_ID: ${{ secrets.PLAID_CLIENT_ID }}
+      PLAID_SECRET: ${{ secrets.PLAID_SECRET }}
+      PLAID_ENV: sandbox
+      PLAID_REDIRECT_URI: http://localhost:3000/api/plaid/callback
+      PLAID_PRODUCTS: transactions
+      PLAID_COUNTRY_CODES: US,CA
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+
+      - name: Verify no mock/faker imports (ESLint)
+        run: npm run lint
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+      - name: Build Next.js app
+        run: npm run build
+
+      - name: Run Vitest API tests
+        run: npm run test:api
+        env:
+          CI: true
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Run accessibility tests
+        run: npm run test:a11y
+        env:
+          CI: true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Run comprehensive verification
+        run: npm run verify-all > verification-report.json
+        env:
+          CI: true
+
+      - name: Upload verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-report
+          path: verification-report.json
+          retention-days: 30
+
+      - name: Check verification passed
+        run: |
+          if grep -q '"overall": "ALL SYSTEMS OPERATIONAL' verification-report.json; then
+            echo "✅ Verification PASSED"
+            exit 0
+          else
+            echo "❌ Verification FAILED"
+            cat verification-report.json
+            exit 1
+          fi
+
+  security:
+    name: Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Audit for vulnerabilities
+        run: npm audit --audit-level=moderate
+
+      - name: Check for forbidden imports
+        run: |
+          echo "Checking for forbidden mock/faker/seed imports..."
+          if grep -r "from.*faker\|from.*chance\|from.*@tests/fixtures\|from.*seed\|from.*play-data" src/ --include="*.ts" --include="*.tsx"; then
+            echo "❌ FORBIDDEN: Found mock/faker/seed imports in production code!"
+            exit 1
+          else
+            echo "✅ No forbidden imports found"
+          fi
+

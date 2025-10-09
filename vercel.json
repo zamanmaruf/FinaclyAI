@@ -1,0 +1,55 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "regions": ["iad1"],
+  "env": {
+    "DATABASE_URL": "@database-url",
+    "STRIPE_SECRET_KEY": "@stripe-secret-key",
+    "STRIPE_WEBHOOK_SECRET": "@stripe-webhook-secret",
+    "PLAID_CLIENT_ID": "@plaid-client-id",
+    "PLAID_SECRET": "@plaid-secret",
+    "PLAID_ENV": "sandbox",
+    "QBO_CLIENT_ID": "@qbo-client-id",
+    "QBO_CLIENT_SECRET": "@qbo-client-secret",
+    "QBO_ENVIRONMENT": "sandbox",
+    "NEXT_PUBLIC_APP_URL": "https://finaclyai.vercel.app",
+    "SHARED_ADMIN_TOKEN": "@shared-admin-token",
+    "AUTH_PROTECTED": "false"
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=()"
+        }
+      ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/docs",
+      "destination": "/dashboard",
+      "permanent": false
+    }
+  ]
+}
+

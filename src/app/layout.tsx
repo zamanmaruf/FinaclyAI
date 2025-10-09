@@ -1,9 +1,16 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/react";
+import { Inter } from "next/font/google";
+import AppThemeProvider from "./theme-provider";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { Toaster } from 'react-hot-toast';
 
-// QBO startup log
-console.log('QBO ready: visit /api/qbo/connect to authorize');
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Finacly AI — Automated Reconciliation for Stripe, Banks & QuickBooks",
@@ -61,15 +68,26 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/favicon.svg" />
-        <meta name="theme-color" content="#4f46e5" />
+        <meta name="theme-color" content="#2e7d32" />
       </head>
-      <body className="min-h-screen bg-white">
-        {children}
-        <Analytics />
+      <body className={`min-h-screen ${inter.className}`}>
+        <AppThemeProvider>
+          <ErrorBoundary>
+            <Toaster 
+              position="top-right"
+              toastOptions={{
+                success: { duration: 3000, style: { background: '#10b981', color: '#fff' } },
+                error: { duration: 5000, style: { background: '#ef4444', color: '#fff' } },
+                loading: { style: { background: '#3b82f6', color: '#fff' } },
+              }}
+            />
+            {children}
+          </ErrorBoundary>
+        </AppThemeProvider>
       </body>
     </html>
   );

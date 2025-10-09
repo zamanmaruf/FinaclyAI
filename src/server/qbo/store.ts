@@ -1,5 +1,6 @@
 import { db } from '@/server/db';
 import { refreshToken } from './oauth';
+import { encrypt, decrypt } from '@/server/crypto';
 
 export async function getActiveToken(realmId: string) {
   return await db.qboToken.findFirst({
@@ -14,27 +15,41 @@ export async function saveToken(realmId: string, token: {
   tokenType: string;
   expiresAt: Date;
 }) {
+  // Encrypt tokens before storing
+  const accessTokenEncrypted = encrypt(token.accessToken);
+  const refreshTokenEncrypted = encrypt(token.refreshToken);
+  
+  // Use hardcoded owner ID for single-tenant mode
+  const ownerId = '1';
+  
   // Upsert company
   await db.qboCompany.upsert({
     where: { id: realmId },
     update: { updatedAt: new Date() },
-    create: { id: realmId },
+    create: { 
+      id: realmId,
+      ownerId,
+    },
   });
 
-  // Upsert token
+  // Upsert token with both plaintext (deprecated) and encrypted versions
   await db.qboToken.upsert({
     where: { realmId },
     update: {
-      accessToken: token.accessToken,
-      refreshToken: token.refreshToken,
+      accessToken: token.accessToken, // Deprecated, kept for backward compatibility
+      refreshToken: token.refreshToken, // Deprecated, kept for backward compatibility
+      accessTokenEncrypted,
+      refreshTokenEncrypted,
       tokenType: token.tokenType,
       expiresAt: token.expiresAt,
       updatedAt: new Date(),
     },
     create: {
       realmId,
-      accessToken: token.accessToken,
-      refreshToken: token.refreshToken,
+      accessToken: token.accessToken, // Deprecated, kept for backward compatibility
+      refreshToken: token.refreshToken, // Deprecated, kept for backward compatibility
+      accessTokenEncrypted,
+      refreshTokenEncrypted,
       tokenType: token.tokenType,
       expiresAt: token.expiresAt,
     },
@@ -51,10 +66,10 @@ export async function updateToken(realmId: string, token: {
 }
 
 export function needsRefresh(token: { expiresAt: Date }): boolean {
-  // Refresh if token expires within the next 2 minutes
-  const twoMinutesFromNow = new Date();
-  twoMinutesFromNow.setMinutes(twoMinutesFromNow.getMinutes() + 2);
-  return token.expiresAt <= twoMinutesFromNow;
+  // Refresh if token expires within the next 5 minutes
+  const fiveMinutesFromNow = new Date();
+  fiveMinutesFromNow.setMinutes(fiveMinutesFromNow.getMinutes() + 5);
+  return token.expiresAt <= fiveMinutesFromNow;
 }
 
 export function validateToken(token: {
@@ -126,7 +141,12 @@ export async function withQboAccess<T>(
     console.log('🔄 Refreshing QBO token for realmId:', realmId);
     
     try {
-      const newToken = await refreshToken(token.refreshToken);
+      // Decrypt refresh token before using it
+      const refreshTokenPlaintext = token.refreshTokenEncrypted 
+        ? decrypt(token.refreshTokenEncrypted)
+        : token.refreshToken; // Fallback to plaintext for backward compatibility
+      
+      const newToken = await refreshToken(refreshTokenPlaintext);
       
       await updateToken(realmId, {
         accessToken: newToken.accessToken,
@@ -148,5 +168,10 @@ export async function withQboAccess<T>(
     }
   }
 
-  return fn(token.accessToken);
+  // Decrypt access token before using it
+  const accessTokenPlaintext = token.accessTokenEncrypted 
+    ? decrypt(token.accessTokenEncrypted)
+    : token.accessToken; // Fallback to plaintext for backward compatibility
+
+  return fn(accessTokenPlaintext);
 }
