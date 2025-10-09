@@ -44,11 +44,27 @@ export default function ConnectPage() {
   
   // Real connection status
   const { data: stats, mutate: mutateStats } = useSWR('/api/stats', fetcher);
-  const { data: qboStatus, mutate: mutateQboStatus } = useSWR('/api/qbo/status', fetcher);
+  
+  // Check QBO connection status - we need to check if any QBO tokens exist
+  const { data: qboStatus, mutate: mutateQboStatus } = useSWR('/api/qbo/check-connection', fetcher);
+  
+  // Check Plaid connection status
+  const { data: plaidStatus, mutate: mutatePlaidStatus } = useSWR('/api/plaid/check-connection', fetcher);
 
   const stripeConnected = stats?.matched !== undefined // If we have stats, Stripe is connected
-  const plaidConnected = stats?.plaidConnected || false
-  const qboConnected = qboStatus?.ok === true || qboStatus?.connected === true
+  const plaidConnected = plaidStatus?.connected === true
+  const qboConnected = qboStatus?.connected === true
+
+  // Debug logging
+  console.log('Connect page status:', { 
+    stats: stats ? 'loaded' : 'loading', 
+    qboStatus: qboStatus ? 'loaded' : 'loading',
+    plaidStatus: plaidStatus ? 'loaded' : 'loading',
+    stripeConnected,
+    plaidConnected,
+    qboConnected,
+    plaidStatusData: plaidStatus
+  })
 
   async function connectStripe() {
     if (!stripeKey || !stripeKey.startsWith('sk_')) {
@@ -91,7 +107,7 @@ export default function ConnectPage() {
       })
       if (response.ok) {
         toast.success('Plaid sandbox account connected successfully!', { id: toastId })
-        await mutateStats()
+        await Promise.all([mutateStats(), mutatePlaidStatus()])
       } else {
         toast.error('Failed to connect Plaid sandbox', { id: toastId })
       }
@@ -116,7 +132,7 @@ export default function ConnectPage() {
       let endpoint = ''
       if (service === 'stripe') endpoint = '/api/stripe/sync?days=1'
       else if (service === 'plaid') endpoint = '/api/plaid/transactions'
-      else if (service === 'qbo') endpoint = `/api/qbo/ping?realmId=${qboStatus?.realmId}`
+      else if (service === 'qbo') endpoint = `/api/qbo/ping?realmId=${qboStatus?.realmId || 'unknown'}`
 
       const response = await fetch(endpoint, service === 'stripe' || service === 'plaid' ? { method: 'POST' } : {})
       
@@ -137,8 +153,7 @@ export default function ConnectPage() {
     try {
       // For now, show toast (actual disconnect endpoints would go here)
       toast.success(`${service.toUpperCase()} disconnected. Note: Implement actual disconnect API.`, { id: toastId })
-      await mutateStats()
-      await mutateQboStatus()
+      await Promise.all([mutateStats(), mutateQboStatus(), mutatePlaidStatus()])
     } catch (error) {
       toast.error(`Failed to disconnect ${service}`, { id: toastId })
     }
@@ -402,9 +417,14 @@ export default function ConnectPage() {
                     <Typography variant="body2" fontWeight="medium">
                       Bank account connected via Plaid
                     </Typography>
-                    {stats?.plaidInstitution && (
+                    {plaidStatus?.institutionName && (
                       <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                        Institution: {stats.plaidInstitution}
+                        Institution: {plaidStatus.institutionName}
+                      </Typography>
+                    )}
+                    {plaidStatus?.accountsCount && (
+                      <Typography variant="caption" display="block" sx={{ opacity: 0.8 }}>
+                        Accounts: {plaidStatus.accountsCount}
                       </Typography>
                     )}
                   </Alert>

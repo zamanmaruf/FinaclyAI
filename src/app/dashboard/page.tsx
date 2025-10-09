@@ -45,6 +45,8 @@ import { useThemeMode } from '@/app/theme-provider'
 import { DashboardSkeleton } from '@/components/LoadingSkeleton'
 import { ExceptionDetailModal } from '@/components/ui/ExceptionDetailModal'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SuccessAnimation } from '@/components/ui/SuccessAnimation'
+import { KeyboardShortcuts, useKeyboardShortcuts } from '@/components/ui/KeyboardShortcuts'
 import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
 
@@ -75,6 +77,9 @@ export default function DashboardPage() {
   const [selectedEx, setSelectedEx] = useState<ExceptionRow | null>(null)
   const [sortBy, setSortBy] = useState<'date' | 'type' | 'amount'>('date')
   const [filterAnchor, setFilterAnchor] = useState<null | HTMLElement>(null)
+  const [showSuccess, setShowSuccess] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [showShortcuts, setShowShortcuts] = useState(false)
   const { mode, toggleTheme } = useThemeMode()
   
   const { data: stats, mutate: mutateStats, isLoading: statsLoading } = useSWR<{ matched: number; exceptions: number; lastSync?: string | null }>("/api/stats", fetcher, { 
@@ -124,6 +129,16 @@ export default function DashboardPage() {
 
   const totalPages = Math.ceil(filteredExceptions.length / ITEMS_PER_PAGE)
 
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    's': syncNow,
+    '?': () => setShowShortcuts(true),
+    'escape': () => {
+      setSelectedEx(null)
+      setShowShortcuts(false)
+    },
+  })
+
   async function syncNow() {
     setSyncing(true)
     const toastId = toast.loading('Syncing data from Stripe, Plaid, and QuickBooks...')
@@ -138,6 +153,12 @@ export default function DashboardPage() {
           { id: toastId, duration: 5000 }
         )
         await Promise.all([mutateStats(), mutateExceptions()])
+        
+        // Show success animation if matches were found
+        if (result.matching?.matched > 0) {
+          setSuccessMessage(`${result.matching.matched} transactions matched!`)
+          setShowSuccess(true)
+        }
       } else {
         toast.error(`Failed: ${result.error}`, { id: toastId })
       }
@@ -327,22 +348,33 @@ export default function DashboardPage() {
                 Real-time reconciliation across Stripe, Banks & QuickBooks
               </Typography>
             </Box>
-            <Button 
-              variant="contained" 
-              color="secondary"
-              startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
-              onClick={syncNow} 
-              disabled={syncing}
-              sx={{ 
-                bgcolor: 'white', 
-                color: 'primary.main', 
-                '&:hover': { bgcolor: 'grey.100', transform: 'translateY(-2px)' },
-                fontWeight: 700,
-                transition: 'all 0.2s',
-              }}
-            >
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title="Keyboard shortcuts (?)">
+                <IconButton
+                  onClick={() => setShowShortcuts(true)}
+                  sx={{ color: 'white' }}
+                  aria-label="Show keyboard shortcuts"
+                >
+                  <span style={{ fontSize: '1.2rem' }}>⌨️</span>
+                </IconButton>
+              </Tooltip>
+              <Button 
+                variant="contained" 
+                color="secondary"
+                startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
+                onClick={syncNow} 
+                disabled={syncing}
+                sx={{ 
+                  bgcolor: 'white', 
+                  color: 'primary.main', 
+                  '&:hover': { bgcolor: 'grey.100', transform: 'translateY(-2px)' },
+                  fontWeight: 700,
+                  transition: 'all 0.2s',
+                }}
+              >
+                {syncing ? 'Syncing...' : 'Sync Now'}
+              </Button>
+            </Box>
           </Box>
         </Container>
       </Box>
@@ -679,6 +711,19 @@ export default function DashboardPage() {
         onClose={() => setSelectedEx(null)}
         onFix={fixException}
         fixing={selectedEx ? fixingIds.has(selectedEx.id) : false}
+      />
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcuts
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
+
+      {/* Success Animation */}
+      <SuccessAnimation
+        show={showSuccess}
+        message={successMessage}
+        onComplete={() => setShowSuccess(false)}
       />
     </Box>
   );
