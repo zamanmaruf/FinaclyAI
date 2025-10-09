@@ -1,5 +1,6 @@
 import { plaidClient } from './plaidClient';
 import { prisma } from './db';
+import { encrypt, decrypt } from './crypto';
 
 export async function ensureSandboxItem() {
   // Check if a BankItem already exists
@@ -34,12 +35,20 @@ export async function ensureSandboxItem() {
       access_token: accessToken,
     });
 
-    // Create BankItem
+    // Encrypt access token
+    const accessTokenEncrypted = encrypt(accessToken);
+    
+    // Use hardcoded owner ID for single-tenant mode
+    const ownerId = '1';
+
+    // Create BankItem with both plaintext (deprecated) and encrypted tokens
     const bankItem = await prisma.bankItem.create({
       data: {
         institutionName: 'Chase',
         itemId,
-        accessToken,
+        accessToken, // Deprecated, kept for backward compatibility
+        accessTokenEncrypted,
+        ownerId,
       },
     });
 
@@ -98,6 +107,11 @@ export async function syncTransactions({ days }: { days: number }) {
     for (const item of bankItems) {
       console.log(`Syncing transactions for item: ${item.itemId}`);
 
+      // Decrypt access token before using it
+      const accessToken = item.accessTokenEncrypted 
+        ? decrypt(item.accessTokenEncrypted)
+        : item.accessToken; // Fallback to plaintext for backward compatibility
+
       // In sandbox mode, fire webhook to generate test transactions if this is first sync
       const hasExistingTransactions = await prisma.plaidTransaction.count({
         where: {
@@ -111,7 +125,7 @@ export async function syncTransactions({ days }: { days: number }) {
         try {
           console.log('🔥 Firing Plaid sandbox webhook to generate test transactions...');
           await plaidClient.sandboxItemFireWebhook({
-            access_token: item.accessToken,
+            access_token: accessToken,
             webhook_code: 'DEFAULT_UPDATE' as any,
           });
           results.webhookFired = true;
@@ -133,7 +147,7 @@ export async function syncTransactions({ days }: { days: number }) {
         // Fetch all updates since last sync using cursor pagination
         while (hasMore) {
           const syncResponse = await plaidClient.transactionsSync({
-            access_token: item.accessToken,
+            access_token: accessToken,
             cursor,
             count: 500, // Max per request
           });

@@ -111,18 +111,36 @@ model StripeException {
   @@map("stripe_exceptions")
 }
 
+model StripeConnect {
+  id                     String   @id @default(cuid())
+  ownerId                String   @db.VarChar(64)  // Multi-tenant support
+  accountId              String   @db.VarChar(64)  // Stripe account ID (acct_xxx)
+  accessTokenEncrypted   String                    // Encrypted OAuth access token
+  refreshTokenEncrypted  String?                   // Encrypted OAuth refresh token (if applicable)
+  publishableKey         String?  @db.VarChar(255) // Publishable key for client-side use (not sensitive)
+  livemode               Boolean  @default(false)  // Whether this is a live or test mode connection
+  scope                  String?                   // OAuth scopes granted
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@unique([ownerId, accountId])
+  @@index([ownerId])
+  @@map("stripe_connect")
+}
+
 // ===== Plaid/Bank Models =====
 
 model BankItem {
-  id              String        @id @default(cuid())
-  institutionName String
-  itemId          String        @unique
-  accessToken     String        @unique
-  syncCursor      String?       // Plaid transactions/sync cursor for idempotent incremental sync
-  ownerId         String?       @db.VarChar(64) // Multi-tenant support
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  accounts        BankAccount[]
+  id                   String        @id @default(cuid())
+  institutionName      String
+  itemId               String        @unique
+  accessToken          String        @unique  // Deprecated: use accessTokenEncrypted
+  accessTokenEncrypted String?                // New: encrypted Plaid access token
+  syncCursor           String?                // Plaid transactions/sync cursor for idempotent incremental sync
+  ownerId              String?       @db.VarChar(64) // Multi-tenant support
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  accounts             BankAccount[]
   
   @@index([ownerId])
   @@map("bank_items")
@@ -189,15 +207,17 @@ model QboCompany {
 }
 
 model QboToken {
-  id           String     @id @default(cuid())
-  realmId      String     @unique
-  accessToken  String
-  refreshToken String
-  tokenType    String
-  expiresAt    DateTime
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  company      QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
+  id                     String     @id @default(cuid())
+  realmId                String     @unique
+  accessToken            String     // Deprecated: use accessTokenEncrypted
+  refreshToken           String     // Deprecated: use refreshTokenEncrypted
+  accessTokenEncrypted   String?    // New: encrypted access token
+  refreshTokenEncrypted  String?    // New: encrypted refresh token
+  tokenType              String
+  expiresAt              DateTime
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+  company                QboCompany @relation(fields: [realmId], references: [id], onDelete: Cascade)
 
   @@map("qbo_tokens")
 }

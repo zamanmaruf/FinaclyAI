@@ -1,10 +1,13 @@
 'use client';
 
-import { AppBar, Toolbar, Typography, Button, Box, IconButton, useTheme, useMediaQuery, Drawer, List, ListItem, ListItemButton, ListItemText, Divider } from '@mui/material';
-import { Brightness4, Brightness7, Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
+import { AppBar, Toolbar, Typography, Button, Box, IconButton, useTheme, useMediaQuery, Drawer, List, ListItem, ListItemButton, ListItemText, Divider, Chip, Menu, MenuItem, Badge } from '@mui/material';
+import { Brightness4, Brightness7, Menu as MenuIcon, Close as CloseIcon, DeveloperMode as DevIcon } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import useSWR from 'swr';
+
+const fetcher = (url: string) => fetch(url).then(r => r.json());
 
 interface NavigationProps {
   onThemeToggle?: () => void;
@@ -16,6 +19,11 @@ export default function Navigation({ onThemeToggle, currentTheme = 'light' }: Na
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [devMenuAnchor, setDevMenuAnchor] = useState<null | HTMLElement>(null);
+  
+  // Check if we're in internal mode
+  const { data: stripeStatus } = useSWR('/api/status/stripe', fetcher);
+  const isInternalMode = stripeStatus?.mode === 'internal';
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -26,6 +34,15 @@ export default function Navigation({ onThemeToggle, currentTheme = 'light' }: Na
     { label: 'Home', href: '/' },
     { label: 'Connect', href: '/connect' },
     { label: 'Dashboard', href: '/dashboard' },
+  ];
+  
+  const devTools = [
+    { label: 'Seed Stripe Payout', href: '/api/stripe/seed-payout', method: 'POST' },
+    { label: 'Plaid Sandbox Link', href: '/api/plaid/sandbox-link', method: 'POST' },
+    { label: 'QBO Debug Config', href: '/api/qbo/debug-config' },
+    { label: 'Verification Scripts', href: '#verify', action: () => {
+      alert('Run: npm run verify:day6 or npm run verify:day7');
+    }},
   ];
 
   const isActive = (href: string) => {
@@ -75,6 +92,54 @@ export default function Navigation({ onThemeToggle, currentTheme = 'light' }: Na
                   {item.label}
                 </Button>
               ))}
+              
+              {/* Developer Tools Badge (Internal Mode Only) */}
+              {isInternalMode && (
+                <>
+                  <Chip
+                    icon={<DevIcon />}
+                    label="Dev Tools"
+                    size="small"
+                    onClick={(e) => setDevMenuAnchor(e.currentTarget)}
+                    sx={{ 
+                      ml: 1,
+                      bgcolor: 'warning.main',
+                      color: 'warning.contrastText',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      '&:hover': { transform: 'scale(1.05)', bgcolor: 'warning.dark' }
+                    }}
+                  />
+                  <Menu
+                    anchorEl={devMenuAnchor}
+                    open={Boolean(devMenuAnchor)}
+                    onClose={() => setDevMenuAnchor(null)}
+                  >
+                    <MenuItem disabled>
+                      <Typography variant="caption" fontWeight="bold">Internal Mode Tools</Typography>
+                    </MenuItem>
+                    <Divider />
+                    {devTools.map((tool) => (
+                      <MenuItem 
+                        key={tool.label}
+                        onClick={() => {
+                          if (tool.action) {
+                            tool.action();
+                          } else if (tool.method === 'POST') {
+                            fetch(tool.href, { method: 'POST' }).then(() => alert(`${tool.label} executed`));
+                          } else {
+                            window.open(tool.href, '_blank');
+                          }
+                          setDevMenuAnchor(null);
+                        }}
+                      >
+                        {tool.label}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </>
+              )}
               
               {onThemeToggle && (
                 <IconButton 

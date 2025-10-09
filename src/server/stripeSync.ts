@@ -1,6 +1,8 @@
-import { stripe } from './stripeClient';
+import { stripe, getStripeClient } from './stripeClient';
 import { db } from './db';
 import { toMinorUnits } from './money';
+import { isProductionMode } from '@/env';
+import type Stripe from 'stripe';
 
 interface SyncResult {
   charges: number;
@@ -9,7 +11,8 @@ interface SyncResult {
   exceptions: number;
 }
 
-export async function syncCharges({ days }: { days: number }): Promise<number> {
+export async function syncCharges({ days, stripeClient }: { days: number; stripeClient?: Stripe }): Promise<number> {
+  const client = stripeClient || stripe;
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
   const startTimestamp = Math.floor(startDate.getTime() / 1000);
@@ -29,7 +32,7 @@ export async function syncCharges({ days }: { days: number }): Promise<number> {
       params.starting_after = startingAfter;
     }
 
-    const charges = await stripe.charges.list(params);
+    const charges = await client.charges.list(params);
     allCharges = allCharges.concat(charges.data);
     
     hasMore = charges.has_more;
@@ -47,7 +50,7 @@ export async function syncCharges({ days }: { days: number }): Promise<number> {
       let net = 0;
       
       if (charge.balance_transaction) {
-        const balanceTx = await stripe.balanceTransactions.retrieve(charge.balance_transaction as string);
+        const balanceTx = await client.balanceTransactions.retrieve(charge.balance_transaction as string);
         fee = balanceTx.fee;
         net = balanceTx.net;
       }
@@ -114,7 +117,8 @@ export async function syncCharges({ days }: { days: number }): Promise<number> {
   return syncedCount;
 }
 
-export async function syncPayouts({ days }: { days: number }): Promise<number> {
+export async function syncPayouts({ days, stripeClient }: { days: number; stripeClient?: Stripe }): Promise<number> {
+  const client = stripeClient || stripe;
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
   const startTimestamp = Math.floor(startDate.getTime() / 1000);
@@ -134,7 +138,7 @@ export async function syncPayouts({ days }: { days: number }): Promise<number> {
       params.starting_after = startingAfter;
     }
 
-    const payouts = await stripe.payouts.list(params);
+    const payouts = await client.payouts.list(params);
     allPayouts = allPayouts.concat(payouts.data);
     
     hasMore = payouts.has_more;
@@ -202,7 +206,7 @@ export async function syncPayouts({ days }: { days: number }): Promise<number> {
           btParams.starting_after = startingAfterBt;
         }
 
-        const balanceTransactions = await stripe.balanceTransactions.list(btParams);
+        const balanceTransactions = await client.balanceTransactions.list(btParams);
         balanceTxs = balanceTxs.concat(balanceTransactions.data);
         
         hasMoreBts = balanceTransactions.has_more;
@@ -286,11 +290,14 @@ export async function syncPayouts({ days }: { days: number }): Promise<number> {
   return syncedCount;
 }
 
-export async function syncStripeAll({ days }: { days: number }): Promise<SyncResult> {
+export async function syncStripe({ days }: { days: number }): Promise<{ payouts: { inserted: number }; charges: { inserted: number }; balanceTxs: number; exceptions: number }> {
   console.log(`Starting Stripe sync for last ${days} days...`);
   
-  const charges = await syncCharges({ days });
-  const payouts = await syncPayouts({ days });
+  // Get appropriate Stripe client (production OAuth or internal env key)
+  const stripeClient = isProductionMode() ? await getStripeClient() : stripe;
+  
+  const charges = await syncCharges({ days, stripeClient });
+  const payouts = await syncPayouts({ days, stripeClient });
   
   // Count balance transactions and exceptions
   const balanceTxs = await db.stripeBalanceTx.count();
@@ -299,9 +306,12 @@ export async function syncStripeAll({ days }: { days: number }): Promise<SyncRes
   console.log(`Stripe sync complete: ${charges} charges, ${payouts} payouts, ${balanceTxs} balance txs, ${exceptions} exceptions`);
   
   return {
-    charges,
-    payouts,
+    charges: { inserted: charges },
+    payouts: { inserted: payouts },
     balanceTxs,
     exceptions,
   };
 }
+
+// Backward compatibility alias
+export const syncStripeAll = syncStripe;
