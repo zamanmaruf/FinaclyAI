@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/server/db'
-import { decrypt } from '@/server/crypto'
-import { getQboClient } from '@/server/qbo/client'
+import { QboClient } from '@/server/qbo/client'
 
 /**
  * GET /api/status/qbo
@@ -36,7 +35,7 @@ export async function GET() {
     
     try {
       // Perform lightweight ping to verify connection
-      const client = await getQboClient(qboToken.realmId)
+      const client = new QboClient(qboToken.realmId)
       const companyInfo = await client.getCompanyInfo()
       
       return NextResponse.json({
