@@ -260,6 +260,8 @@ model QboPayment {
 
 model WaitlistSignup {
   id        String   @id @default(cuid())
+  name      String?
+  company   String?
   email     String   @unique
   createdAt DateTime @default(now())
   source    String?

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthProtected } from './env';
+import { isAdminAuthenticatedFromRequest } from './server/adminAuth';
 
-const PROTECTED_PATHS = ['/connect', '/dashboard'];
+// Product pages requiring admin authentication
+const ADMIN_PROTECTED_PATHS = ['/connect', '/dashboard'];
+
+// Public marketing pages (no auth required)
+const PUBLIC_PATHS = ['/', '/pricing', '/how-it-works', '/privacy', '/terms', '/admin/login'];
 
 // Simple in-memory rate limiter (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -74,30 +79,67 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  // Always allow API routes, health, and login
-  if (pathname.startsWith('/api/') || pathname === '/login' || pathname === '/api/health') {
+  // Public API routes (always allow)
+  const publicApiRoutes = [
+    '/api/health',
+    '/api/waitlist',
+    '/api/status/stripe',
+    '/api/status/plaid', 
+    '/api/status/qbo',
+  ];
+  
+  if (publicApiRoutes.some(route => pathname === route || pathname.startsWith(route))) {
     return response;
   }
 
-  // If auth is not protected, allow all access
-  if (!isAuthProtected()) {
+  // Check if this is an admin-protected path (product pages)
+  const isAdminProtectedPath = ADMIN_PROTECTED_PATHS.some((p) => pathname.startsWith(p));
+  
+  if (isAdminProtectedPath) {
+    // Check admin authentication
+    if (!isAdminAuthenticatedFromRequest(req)) {
+      const loginUrl = new URL('/admin/login', req.url);
+      loginUrl.searchParams.set('next', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    // Admin authenticated, allow access
     return response;
   }
 
-  // Check if this path requires auth
-  const requiresAuth = PROTECTED_PATHS.some((p) => pathname.startsWith(p));
-  if (!requiresAuth) return response;
+  // Protected API routes (require admin auth, except public ones above)
+  if (pathname.startsWith('/api/')) {
+    if (!isAdminAuthenticatedFromRequest(req)) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Admin access required.' },
+        { status: 401 }
+      );
+    }
+    return response;
+  }
 
-  const cookie = req.cookies.get('finacly_auth')?.value;
-  if (cookie === 'ok') return response;
+  // Public paths always allowed
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p))) {
+    return response;
+  }
 
-  const loginUrl = new URL('/login', req.url);
-  loginUrl.searchParams.set('next', pathname);
-  return NextResponse.redirect(loginUrl);
+  // Legacy SHARED_PASSWORD auth for /login
+  if (pathname === '/login') {
+    if (!isAuthProtected()) {
+      return response;
+    }
+    
+    const cookie = req.cookies.get('finacly_auth')?.value;
+    if (cookie === 'ok') return response;
+    
+    return response; // Allow login page
+  }
+
+  // Default: allow access
+  return response;
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.svg|og.svg|og.png).*)',
+    '/((?!_next/static|_next/image|favicon.svg|og.svg|og.png|.*\\.jpg|.*\\.png|.*\\.svg).*)',
   ],
 };

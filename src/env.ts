@@ -45,6 +45,13 @@ const envSchema = z.object({
   
   // Admin token for test/dev endpoints (optional)
   SHARED_ADMIN_TOKEN: z.string().optional(),
+  
+  // Admin access password (for /connect and /dashboard)
+  ADMIN_PASSWORD: z.string().optional().default('finacly-admin-2025'),
+  
+  // Optional: Email service (Resend) for waitlist notifications
+  RESEND_API_KEY: z.string().optional(),
+  NOTIFICATION_EMAIL: z.string().email().optional().default('finacly.ai.inc@gmail.com'),
 })
 
 export const env = envSchema.parse(process.env)
