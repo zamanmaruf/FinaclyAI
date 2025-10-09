@@ -10,7 +10,7 @@ export async function GET() {
       orderBy: { updatedAt: 'desc' },
       take: 10,
       include: {
-        account: true,
+        bankAccount: true,
       },
     })
     

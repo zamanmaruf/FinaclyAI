@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/server/db'
-import { QboClient } from '@/server/qbo/client'
+import { pingCompany } from '@/server/qbo/client'
 
 /**
  * GET /api/status/qbo
@@ -35,13 +35,12 @@ export async function GET() {
     
     try {
       // Perform lightweight ping to verify connection
-      const client = new QboClient(qboToken.realmId)
-      const companyInfo = await client.getCompanyInfo()
+      const pingResult = await pingCompany(qboToken.realmId)
       
       return NextResponse.json({
-        connected: true,
+        connected: pingResult.ok,
         realmId: qboToken.realmId,
-        companyName: companyInfo?.CompanyName || qboToken.company.name || 'Unknown',
+        companyName: pingResult.companyName || qboToken.company.name || 'Unknown',
         lastVerified: new Date().toISOString(),
       })
     } catch (error: any) {
