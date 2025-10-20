@@ -1,8 +1,14 @@
 import { Pool } from 'pg'
+import { config } from 'dotenv'
+
+// Load environment variables
+config({ path: '.env.local' })
+
+console.log('🔗 Database connection string:', process.env.DATABASE_URL)
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   // Performance optimizations
   max: 20, // Maximum number of clients in the pool
   min: 5,  // Minimum number of clients in the pool

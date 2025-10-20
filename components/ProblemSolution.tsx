@@ -1,18 +1,19 @@
 'use client'
 
-import { AlertTriangle, CheckCircle, Clock, DollarSign, Zap } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Clock, DollarSign, Zap, FileText, Users } from 'lucide-react'
 
 export default function ProblemSolution() {
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 bg-teal-950/30">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">
-            The <span className="gradient-text">Problem</span> Every SMB Faces
+            Month-end shouldn't be a triathlon.
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Manual reconciliation is a monthly nightmare that costs time, money, and sanity.
+            Your team chases Stripe/PayPal reports, bank deposits, and QuickBooks entries across tabs and spreadsheets. 
+            Batch payouts, fees, multi-currency, and timing differences make it worse. Errors slip through; close gets delayed.
           </p>
         </div>
 
@@ -25,32 +26,40 @@ export default function ProblemSolution() {
                 <AlertTriangle className="w-8 h-8 text-red-400" />
               </div>
               <h3 className="text-2xl font-heading font-bold text-red-400">
-                Before Finacly AI
+                The Problem
               </h3>
             </div>
             
             <div className="space-y-6">
               <div className="flex items-start">
+                <AlertTriangle className="w-5 h-5 text-red-500 mr-3 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white mb-1">Payouts that don't match deposits</h4>
+                  <p className="text-gray-400">Manual reconciliation across multiple systems leads to mismatches</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <FileText className="w-5 h-5 text-red-400 mr-3 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white mb-1">Deposits missing in QuickBooks</h4>
+                  <p className="text-gray-400">Bank deposits not properly recorded in your accounting system</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
+                <Users className="w-5 h-5 text-red-400 mr-3 mt-1 flex-shrink-0" />
+                <div>
+                  <h4 className="font-semibold text-white mb-1">Manual fee splits and duplicate entries</h4>
+                  <p className="text-gray-400">Time-consuming manual work that's prone to errors</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start">
                 <Clock className="w-5 h-5 text-red-400 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold text-white mb-1">30+ Hours Monthly</h4>
-                  <p className="text-gray-400">Spent on manual reconciliation across multiple systems</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <AlertTriangle className="w-5 h-5 text-red-400 mr-3 mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-white mb-1">Error-Prone Process</h4>
-                  <p className="text-gray-400">Manual data entry leads to costly mistakes and discrepancies</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <DollarSign className="w-5 h-5 text-red-400 mr-3 mt-1 flex-shrink-0" />
-                <div>
-                  <h4 className="font-semibold text-white mb-1">High Opportunity Cost</h4>
-                  <p className="text-gray-400">Time spent on reconciliation could be used for growth activities</p>
+                  <h4 className="font-semibold text-white mb-1">No single audit trail</h4>
+                  <p className="text-gray-400">Scattered records make compliance and auditing difficult</p>
                 </div>
               </div>
             </div>
@@ -63,51 +72,74 @@ export default function ProblemSolution() {
                 <CheckCircle className="w-8 h-8 text-primary-400" />
               </div>
               <h3 className="text-2xl font-heading font-bold text-primary-400">
-                With Finacly AI
+                The Solution
               </h3>
             </div>
             
             <div className="space-y-6">
               <div className="flex items-start">
-                <Zap className="w-5 h-5 text-primary-400 mr-3 mt-1 flex-shrink-0" />
+                <Zap className="w-5 h-5 text-mint-500 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold text-white mb-1">5 Minutes Daily</h4>
-                  <p className="text-gray-400">Just review exceptions and approve AI-suggested matches</p>
+                  <h4 className="font-semibold text-white mb-1">A reconciliation engine that thinks in payouts</h4>
+                  <p className="text-gray-400">Finacly ingests PSP data, bank feeds, and QuickBooks records to match payouts ↔ deposits</p>
                 </div>
               </div>
               
               <div className="flex items-start">
                 <CheckCircle className="w-5 h-5 text-primary-400 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold text-white mb-1">95%+ Accuracy</h4>
-                  <p className="text-gray-400">AI-powered matching eliminates human errors and inconsistencies</p>
+                  <h4 className="font-semibold text-white mb-1">One-click fixes with evidence</h4>
+                  <p className="text-gray-400">Proposes idempotent fixes and records every step in an audit trail</p>
                 </div>
               </div>
               
               <div className="flex items-start">
-                <DollarSign className="w-5 h-5 text-primary-400 mr-3 mt-1 flex-shrink-0" />
+                <FileText className="w-5 h-5 text-primary-400 mr-3 mt-1 flex-shrink-0" />
                 <div>
-                  <h4 className="font-semibold text-white mb-1">Focus on Growth</h4>
-                  <p className="text-gray-400">Reclaim 30+ hours monthly for strategic business activities</p>
+                  <h4 className="font-semibold text-white mb-1">Built for accountants and controllers</h4>
+                  <p className="text-gray-400">Designed for professionals managing many entities</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Key Stats */}
-        <div className="mt-16 grid md:grid-cols-3 gap-8">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-primary-400 mb-2">30+</div>
-            <div className="text-gray-300">Hours Saved Monthly</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-gold-400 mb-2">95%+</div>
-            <div className="text-gray-300">Auto-Match Rate</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-primary-400 mb-2">5min</div>
-            <div className="text-gray-300">Daily Review Time</div>
+        {/* Mini Diagram */}
+        <div className="mt-16 text-center">
+          <div className="inline-flex items-center space-x-4 bg-white rounded-2xl p-6 shadow-md border border-slate-200">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-royal-100 rounded-xl flex items-center justify-center mb-2">
+                <span className="text-royal-600 font-bold">PSP</span>
+              </div>
+              <div className="text-sm text-slate-600">Stripe/PayPal</div>
+            </div>
+            
+            <div className="text-royal-500 text-2xl">→</div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-mint-100 rounded-xl flex items-center justify-center mb-2">
+                <span className="text-mint-600 font-bold">Match</span>
+              </div>
+              <div className="text-sm text-slate-600">Finacly</div>
+            </div>
+            
+            <div className="text-royal-500 text-2xl">→</div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-xl flex items-center justify-center mb-2">
+                <span className="text-amber-600 font-bold">Bank</span>
+              </div>
+              <div className="text-sm text-slate-600">Deposits</div>
+            </div>
+            
+            <div className="text-royal-500 text-2xl">→</div>
+            
+            <div className="text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mb-2">
+                <span className="text-slate-600 font-bold">Fix</span>
+              </div>
+              <div className="text-sm text-slate-600">QuickBooks</div>
+            </div>
           </div>
         </div>
       </div>

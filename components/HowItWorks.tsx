@@ -16,27 +16,27 @@ import {
 const steps = [
   {
     number: '01',
-    title: 'Connect Your Accounts',
-    description: 'Securely link your Stripe, QuickBooks, and bank accounts in under 2 minutes.',
+    title: 'Connect Stripe, QuickBooks Online, and your bank',
+    description: 'Link your payment processor, accounting software, and bank via Plaid/Flinks.',
     icon: Link,
-    color: 'text-primary-400',
-    bgColor: 'bg-primary-500/10'
+    color: 'text-royal-500',
+    bgColor: 'bg-royal-100'
   },
   {
     number: '02',
-    title: 'AI Auto-Matches Everything',
-    description: 'Our AI engine analyzes and matches 95%+ of transactions automatically.',
+    title: 'Match payouts to deposits automatically',
+    description: 'Exceptions are surfaced with evidence and confidence scores.',
     icon: Brain,
-    color: 'text-gold-400',
-    bgColor: 'bg-gold-500/10'
+    color: 'text-mint-500',
+    bgColor: 'bg-mint-100'
   },
   {
     number: '03',
-    title: 'Review & Fix Exceptions',
-    description: 'Clean exceptions inbox shows unmatched transactions. One-click fixes for the rest.',
+    title: 'Fix with one click',
+    description: 'Create Deposits, mark invoices paid, and export an audit file.',
     icon: CheckCircle,
-    color: 'text-primary-400',
-    bgColor: 'bg-primary-500/10'
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-100'
   }
 ]
 
@@ -52,16 +52,16 @@ const integrations = [
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 bg-forest-950/30">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">
-            How <span className="gradient-text">Finacly AI</span> Works
+            How It Works
           </h2>
           <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Transform your reconciliation process from a monthly nightmare into an automated success 
-            in just three simple steps.
+            Three simple steps to transform your reconciliation process from a monthly nightmare 
+            into an automated success.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export default function HowItWorks() {
           {steps.map((step, index) => (
             <div key={step.number} className="relative">
               {/* Step Number */}
-              <div className="text-6xl font-bold text-white/10 absolute -top-4 -left-4">
+              <div className="text-6xl font-bold text-slate-100 absolute -top-4 -left-4">
                 {step.number}
               </div>
               
@@ -91,7 +91,7 @@ export default function HowItWorks() {
               {/* Arrow (except for last step) */}
               {index < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-1/2 -right-6 transform -translate-y-1/2 z-20">
-                  <ArrowRight className="w-8 h-8 text-primary-400" />
+                  <ArrowRight className="w-8 h-8 text-royal-500" />
                 </div>
               )}
             </div>

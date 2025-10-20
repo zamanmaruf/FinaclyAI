@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Finacly AI - End the Reconciliation Nightmare',
-  description: 'AI-powered financial reconciliation for SMBs. Automatically match transactions across Stripe, QuickBooks, and bank feeds. Built for 2026 Open Banking.',
-  keywords: 'financial reconciliation, AI automation, Stripe QuickBooks, SMB finance, open banking, fintech',
+  title: 'Finacly — Payout-Aware Reconciliation for QuickBooks (Launching Dec 1, 2025)',
+  description: 'Automate payout-to-bank-to-ledger reconciliation with one-click fixes and an audit trail. Early Access open until Nov 30. Founding discount 30-50% off.',
+  keywords: 'payout reconciliation, QuickBooks automation, Stripe reconciliation, financial reconciliation, SMB finance, accounting automation, fintech',
   authors: [{ name: 'Finacly AI' }],
   creator: 'Finacly AI',
   publisher: 'Finacly AI',
@@ -18,25 +18,25 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'Finacly AI - End the Reconciliation Nightmare',
-    description: 'AI-powered financial reconciliation for SMBs. Automatically match transactions across Stripe, QuickBooks, and bank feeds.',
+    title: 'Finacly — Payout-Aware Reconciliation for QuickBooks (Launching Dec 1, 2025)',
+    description: 'Automate payout-to-bank-to-ledger reconciliation with one-click fixes and an audit trail. Early Access open until Nov 30.',
     url: 'https://finacly.ai',
-    siteName: 'Finacly AI',
+    siteName: 'Finacly',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Finacly AI - AI-powered financial reconciliation',
+        alt: 'Finacly - Payout-aware reconciliation for QuickBooks',
       },
     ],
-    locale: 'en_US',
+    locale: 'en_CA',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Finacly AI - End the Reconciliation Nightmare',
-    description: 'AI-powered financial reconciliation for SMBs. Automatically match transactions across Stripe, QuickBooks, and bank feeds.',
+    title: 'Finacly — Payout-Aware Reconciliation for QuickBooks (Launching Dec 1, 2025)',
+    description: 'Automate payout-to-bank-to-ledger reconciliation with one-click fixes and an audit trail. Early Access open until Nov 30.',
     images: ['/og-image.jpg'],
     creator: '@finaclyai',
   },

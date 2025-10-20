@@ -67,6 +67,11 @@ export default function Footer() {
             <h4 className="text-lg font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-3">
               <li>
+                <Link href="/security" className="text-gray-300 hover:text-primary-400 transition-colors">
+                  Security
+                </Link>
+              </li>
+              <li>
                 <Link href="/privacy" className="text-gray-300 hover:text-primary-400 transition-colors">
                   Privacy Policy
                 </Link>
@@ -74,6 +79,16 @@ export default function Footer() {
               <li>
                 <Link href="/terms" className="text-gray-300 hover:text-primary-400 transition-colors">
                   Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/status" className="text-gray-300 hover:text-primary-400 transition-colors">
+                  Status
+                </Link>
+              </li>
+              <li>
+                <Link href="/docs" className="text-gray-300 hover:text-primary-400 transition-colors">
+                  Docs
                 </Link>
               </li>
               <li>
@@ -106,7 +121,15 @@ export default function Footer() {
         <div className="border-t border-white/10 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm mb-4 md:mb-0">
-              © 2025 Finacly AI. All rights reserved.
+              © 2025 Finacly AI Inc. Halifax, NS, Canada. All rights reserved.
+            </div>
+            <div className="flex items-center space-x-6 text-sm text-gray-400">
+              <a href="https://linkedin.com/company/finacly" className="hover:text-primary-400 transition-colors">
+                LinkedIn
+              </a>
+              <a href="https://twitter.com/finaclyai" className="hover:text-primary-400 transition-colors">
+                Twitter
+              </a>
             </div>
           </div>
         </div>
