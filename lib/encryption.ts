@@ -1,10 +1,11 @@
 import crypto from 'crypto'
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'd2e6096461c05754f1f473b7032dfefaa4f2321b33782aa56030660c0ca6e2a4'
 const ALGORITHM = 'aes-256-gcm'
 
-if (!ENCRYPTION_KEY) {
-  throw new Error('ENCRYPTION_KEY environment variable is required')
+// Only validate in production
+if (process.env.NODE_ENV === 'production' && !process.env.ENCRYPTION_KEY) {
+  throw new Error('ENCRYPTION_KEY environment variable is required in production')
 }
 
 if (ENCRYPTION_KEY.length !== 64) {
