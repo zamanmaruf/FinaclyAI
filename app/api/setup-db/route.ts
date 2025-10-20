@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Production database setup failed:', error)
     return NextResponse.json(
-      { error: 'Database setup failed', details: error.message },
+      { error: 'Database setup failed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
