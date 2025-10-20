@@ -58,37 +58,37 @@ export default function FAQSection() {
   }
 
   return (
-    <section className="py-24 px-4 sm:px-6 lg:px-8 bg-forest-900/30">
+    <section className="py-16 sm:py-20 lg:py-24 px-4 sm:px-6 lg:px-8 bg-forest-900/30">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-white mb-6">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 sm:mb-6">
             Frequently Asked Questions
           </h2>
-          <p className="text-xl text-gray-300">
+          <p className="text-base sm:text-lg lg:text-xl text-gray-300 px-4">
             Everything you need to know about Finacly's reconciliation platform.
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {faqs.map((faq, index) => (
             <div key={index} className="glass-card">
               <button
                 onClick={() => toggleItem(index)}
-                className="w-full p-6 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
+                className="w-full p-4 sm:p-6 text-left flex items-center justify-between hover:bg-white/5 transition-colors"
               >
-                <h3 className="text-lg font-semibold text-white pr-4">
+                <h3 className="text-base sm:text-lg font-semibold text-white pr-3 sm:pr-4">
                   {faq.question}
                 </h3>
                 {openItems.includes(index) ? (
-                  <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                 ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 flex-shrink-0" />
                 )}
               </button>
               
               {openItems.includes(index) && (
-                <div className="px-6 pb-6">
-                  <p className="text-gray-300 leading-relaxed">
+                <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+                  <p className="text-gray-300 leading-relaxed text-sm sm:text-base">
                     {faq.answer}
                   </p>
                 </div>
@@ -97,19 +97,19 @@ export default function FAQSection() {
           ))}
         </div>
 
-        <div className="mt-16 text-center">
-          <div className="glass-card p-8">
-            <h3 className="text-xl font-semibold text-white mb-4">
+        <div className="mt-12 sm:mt-16 text-center">
+          <div className="glass-card p-6 sm:p-8">
+            <h3 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
               Still have questions?
             </h3>
-            <p className="text-gray-300 mb-6">
+            <p className="text-gray-300 mb-4 sm:mb-6 text-sm sm:text-base">
               Our team is here to help. Book a 15-minute fit call to discuss your specific needs.
             </p>
             <a 
               href="https://calendly.com/finacly-ai-inc/30min"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-primary"
+              className="btn-primary text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4"
             >
               Book a Fit Call
             </a>

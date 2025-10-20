@@ -104,31 +104,31 @@ export default function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalPr
 
   if (submitStatus === 'success') {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-        <div className="card p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50">
+        <div className="card p-4 sm:p-6 lg:p-8 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
           <div className="text-center">
-            <div className="inline-flex p-4 rounded-xl bg-mint-500/10 mb-6">
-              <CheckCircle className="w-12 h-12 text-mint-500" />
+            <div className="inline-flex p-3 sm:p-4 rounded-xl bg-mint-500/10 mb-4 sm:mb-6">
+              <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 text-mint-500" />
             </div>
             
-            <h3 className="text-2xl font-bold text-navy-950 mb-4">
+            <h3 className="text-xl sm:text-2xl font-bold text-navy-950 mb-3 sm:mb-4">
               Welcome to Finacly Early Access!
             </h3>
             
-            <p className="text-slate-600 mb-6">
+            <p className="text-slate-600 mb-4 sm:mb-6 text-sm sm:text-base">
               Thank you for joining our early access program. We'll be in touch soon with your 
               exclusive beta access and special founding member pricing.
             </p>
             
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
-              <p className="text-amber-800 font-medium">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+              <p className="text-amber-800 font-medium text-sm sm:text-base">
                 🎉 You're now part of the Finacly revolution!
               </p>
             </div>
             
             <button
               onClick={handleClose}
-              className="btn-primary"
+              className="btn-primary text-sm sm:text-base px-6 sm:px-8 py-3 sm:py-4"
             >
               Close
             </button>
@@ -139,21 +139,21 @@ export default function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalPr
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="card p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-navy-950">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50">
+      <div className="card p-4 sm:p-6 lg:p-8 max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-navy-950">
             Get Early Access
           </h3>
           <button
             onClick={handleClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
           {/* Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
