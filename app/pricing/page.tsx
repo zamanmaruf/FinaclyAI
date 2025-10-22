@@ -13,58 +13,76 @@ import {
 
 const pricingTiers = [
   {
-    name: 'Starter',
-    description: 'Perfect for small businesses getting started',
-    price: '$149',
+    name: 'Professional',
+    subtitle: 'SMB',
+    description: 'Perfect for growing businesses and accounting firms',
+    price: '$299',
+    originalPrice: '$599',
+    discount: '50%',
     period: '/month',
     features: [
-      'Up to 1,000 transactions/month',
-      'Basic AI matching',
-      'Stripe & QuickBooks integration',
-      'Email support',
-      'Basic reporting',
-      'Standard security'
+      'Up to 3 Payment Processors',
+      'Up to 2 Accounting Systems',
+      'Up to 5 Bank Connections',
+      'Up to 25k transactions/month',
+      'Priority Email Support',
+      'Advanced Audit Trail',
+      'Multi-Currency Support',
+      'Basic API Access',
+      'Standard Security'
     ],
-    cta: 'Start Free Trial',
+    cta: 'Get Early Access',
     popular: false,
     color: 'text-primary-400',
     bgColor: 'bg-primary-500/10'
   },
   {
-    name: 'Growth',
-    description: 'For growing businesses with higher transaction volumes',
-    price: '$399',
+    name: 'Enterprise',
+    subtitle: 'Most Popular',
+    description: 'For mid-market companies and accounting firms',
+    price: '$799',
+    originalPrice: '$1599',
+    discount: '50%',
     period: '/month',
     features: [
-      'Up to 10,000 transactions/month',
-      'Advanced AI matching',
-      'All integrations included',
-      'Priority support',
-      'Advanced analytics',
-      'Multi-currency support',
-      'API access',
-      'Custom reporting'
+      'Unlimited Payment Processors',
+      'Unlimited Accounting Systems',
+      'Unlimited Bank Connections',
+      'Up to 100k transactions/month',
+      '24/7 Phone & Chat Support',
+      'Advanced AI Matching',
+      'Custom Reconciliation Rules',
+      'Full API Access',
+      'SOC 2 Type II Compliance',
+      'SSO Integration',
+      'Dedicated Account Manager'
     ],
-    cta: 'Start Free Trial',
+    cta: 'Get Early Access',
     popular: true,
     color: 'text-gold-400',
     bgColor: 'bg-gold-500/10'
   },
   {
-    name: 'Scale',
-    description: 'For enterprise businesses with complex needs',
-    price: '$999',
+    name: 'Fortune 500',
+    subtitle: 'Enterprise',
+    description: 'For large enterprises and global accounting firms',
+    price: '$2499',
+    originalPrice: '$4999',
+    discount: '50%',
     period: '/month',
     features: [
+      'Unlimited Everything',
       'Unlimited transactions',
-      'Premium AI matching',
-      'All integrations + custom',
-      'Dedicated account manager',
-      'Enterprise analytics',
-      'Advanced security',
-      'Custom integrations',
-      'On-premise deployment',
-      'SLA guarantee'
+      'White-label Solutions',
+      'Custom Integrations',
+      'Dedicated Infrastructure',
+      '99.9% SLA Guarantee',
+      'Advanced Analytics & Reporting',
+      'Custom Workflows',
+      'Multi-tenant Architecture',
+      'Dedicated Success Team',
+      'On-premise Deployment Options',
+      'Custom Security Requirements'
     ],
     cta: 'Contact Sales',
     popular: false,
@@ -139,15 +157,22 @@ export default function PricingPage() {
                   <h3 className="text-2xl font-heading font-bold text-white mb-2">
                     {tier.name}
                   </h3>
+                  <p className="text-sm text-gray-400 mb-2">{tier.subtitle}</p>
                   <p className="text-gray-300 mb-6">
                     {tier.description}
                   </p>
-                  <div className="flex items-baseline justify-center mb-6">
+                  <div className="flex items-baseline justify-center mb-2">
                     <span className="text-5xl font-bold text-white">
                       {tier.price}
                     </span>
                     <span className="text-gray-400 ml-1">
                       {tier.period}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center mb-6">
+                    <span className="text-lg text-gray-400 line-through mr-2">{tier.originalPrice}</span>
+                    <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-sm font-medium">
+                      {tier.discount} off
                     </span>
                   </div>
                 </div>
@@ -168,7 +193,7 @@ export default function PricingPage() {
                       : 'btn-primary'
                   }`}
                   onClick={() => {
-                    if (tier.name === 'Scale') {
+                    if (tier.name === 'Fortune 500') {
                       window.location.href = '/contact'
                     } else {
                       window.location.href = '/#signup-form'
