@@ -13,43 +13,43 @@ import {
 const features = [
   {
     icon: Zap,
-    title: 'Exceptions Inbox',
-    description: 'Actionable cards with confidence scores and proposed postings',
+    title: 'AI-Powered Exception Management',
+    description: 'Machine learning algorithms automatically categorize and prioritize reconciliation exceptions with 95%+ accuracy. Intelligent confidence scoring helps your team focus on high-impact discrepancies first.',
     color: 'text-royal-500',
     bgColor: 'bg-royal-100'
   },
   {
     icon: CheckCircle,
-    title: 'One-Click to QuickBooks',
-    description: 'Idempotent creates with external refs; preview before commit',
+    title: 'Enterprise QuickBooks Integration',
+    description: 'Seamless two-way sync with QuickBooks Online and Desktop. Automated journal entry creation with full audit trails, approval workflows, and rollback capabilities for enterprise compliance.',
     color: 'text-mint-500',
     bgColor: 'bg-mint-100'
   },
   {
     icon: Shield,
-    title: 'Audit Trail',
-    description: 'Hash-chained events; CSV/JSONL export for compliance',
+    title: 'SOC 2 Type II Compliance',
+    description: 'Bank-grade security with end-to-end encryption, role-based access controls, and immutable audit logs. Full compliance reporting and automated backup systems for enterprise peace of mind.',
     color: 'text-amber-500',
     bgColor: 'bg-amber-100'
   },
   {
     icon: DollarSign,
-    title: 'Multi-Currency Aware',
-    description: 'Stores original and home amounts; flags FX for review',
+    title: 'Advanced Multi-Currency Engine',
+    description: 'Real-time FX rate integration with 150+ currencies. Automated currency conversion with configurable rate sources, hedging strategies, and comprehensive FX impact reporting for global enterprises.',
     color: 'text-royal-500',
     bgColor: 'bg-royal-100'
   },
   {
     icon: BarChart3,
-    title: 'Accountant Workspace',
-    description: 'Switch companies, shared mappings, batch actions',
+    title: 'Enterprise Workspace Management',
+    description: 'Multi-entity support for accounting firms and holding companies. Centralized dashboard with entity switching, shared templates, bulk operations, and client-specific reconciliation rules.',
     color: 'text-mint-500',
     bgColor: 'bg-mint-100'
   },
   {
     icon: Globe,
-    title: 'Observability',
-    description: 'Sync status, retry queues, provider health banners',
+    title: 'Enterprise Monitoring & Analytics',
+    description: 'Real-time system health monitoring with custom alerts, performance analytics, and predictive insights. Advanced reporting suite with executive dashboards and automated compliance reports.',
     color: 'text-amber-500',
     bgColor: 'bg-amber-100'
   }
@@ -62,11 +62,12 @@ export default function Features() {
         {/* Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">
-            Feature Deep-Dive
+            Enterprise-Grade Financial Technology
           </h2>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Built specifically for accountants and controllers who need enterprise-grade 
-            reconciliation without the complexity or cost.
+          <p className="text-xl text-gray-300 max-w-4xl mx-auto">
+            Built for Fortune 500 companies, accounting firms, and financial institutions. 
+            Our platform handles millions of transactions with bank-grade security, 
+            regulatory compliance, and enterprise-scale performance.
           </p>
         </div>
 

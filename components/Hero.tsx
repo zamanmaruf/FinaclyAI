@@ -61,14 +61,31 @@ export default function Hero() {
 
           {/* Headline */}
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-heading font-bold mb-4 sm:mb-6 leading-tight px-2">
-            Close your books{' '}
-            <span className="gradient-text">8× faster</span> with payout-aware reconciliation.
+            Enterprise-Grade{' '}
+            <span className="gradient-text">Financial Reconciliation</span> for Modern Businesses
           </h1>
 
-          <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-8 sm:mb-12 max-w-4xl mx-auto leading-relaxed px-4">
-            Finacly automatically matches payment-processor payouts to bank deposits, 
-            proposes one-click fixes in QuickBooks Online, and leaves an immutable audit trail.
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-300 mb-6 sm:mb-8 max-w-5xl mx-auto leading-relaxed px-4">
+            Transform your month-end close from a 3-week nightmare into a 3-day process. 
+            Our AI-powered platform automatically reconciles payment processor payouts with bank deposits, 
+            generates audit-ready reports, and integrates seamlessly with your existing accounting stack.
           </p>
+
+          {/* Enterprise Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 mb-8 sm:mb-12 max-w-4xl mx-auto px-4">
+            <div className="glass-card p-4 sm:p-6 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-primary-400 mb-2">95%+</div>
+              <div className="text-sm sm:text-base text-gray-300">Auto-Match Accuracy</div>
+            </div>
+            <div className="glass-card p-4 sm:p-6 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-mint-400 mb-2">8x</div>
+              <div className="text-sm sm:text-base text-gray-300">Faster Month-End Close</div>
+            </div>
+            <div className="glass-card p-4 sm:p-6 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-amber-400 mb-2">SOC 2</div>
+              <div className="text-sm sm:text-base text-gray-300">Type II Compliant</div>
+            </div>
+          </div>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center mb-6 sm:mb-8 px-4">

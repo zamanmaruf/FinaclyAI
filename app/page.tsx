@@ -6,6 +6,7 @@ import HowItWorks from '@/components/HowItWorks'
 import IntegrationsSection from '@/components/IntegrationsSection'
 import AccountantSection from '@/components/AccountantSection'
 import SecuritySection from '@/components/SecuritySection'
+import EnterpriseSection from '@/components/EnterpriseSection'
 import PricingSection from '@/components/PricingSection'
 import FAQSection from '@/components/FAQSection'
 import Footer from '@/components/Footer'
@@ -21,6 +22,7 @@ export default function Home() {
       <IntegrationsSection />
       <AccountantSection />
       <SecuritySection />
+      <EnterpriseSection />
       <PricingSection />
       <FAQSection />
       
