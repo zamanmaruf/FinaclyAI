@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     console.log(`📊 Getting reconciliation summary for company ${companyId}`)
 
     // Initialize reconciliation engine
-    const engine = new ReconciliationEngine(parseInt(companyId))
+    const engine = new ReconciliationEngine(companyId)
 
     // Run reconciliation (no date filtering for summary)
     const result = await engine.reconcile()

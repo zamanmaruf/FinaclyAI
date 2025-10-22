@@ -18,13 +18,13 @@ export async function GET(request: NextRequest) {
     // Match rate trend (last 7 days)
     const matchRateTrendResult = await query(`
       SELECT 
-        DATE(matched_at) as date,
+        DATE(created_at) as date,
         COUNT(*) as matches,
-        ROUND(AVG(match_confidence), 1) as match_rate
-      FROM transaction_matches 
+        ROUND(AVG(confidence), 1) as match_rate
+      FROM matches 
       WHERE company_id = $1 
-        AND matched_at >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY DATE(matched_at)
+        AND created_at >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY DATE(created_at)
       ORDER BY date DESC
       LIMIT 7
     `, [companyId])
@@ -39,12 +39,17 @@ export async function GET(request: NextRequest) {
     // Exception breakdown by type
     const exceptionBreakdownResult = await query(`
       SELECT 
-        exception_type,
+        type as exception_type,
         COUNT(*) as count,
-        severity
+        CASE 
+          WHEN type LIKE '%PAYOUT_MISSING%' THEN 'critical'
+          WHEN type LIKE '%STRIPE_CHARGE%' THEN 'high'
+          WHEN type LIKE '%BANK_TRANSACTION%' THEN 'medium'
+          ELSE 'low'
+        END as severity
       FROM exceptions 
       WHERE company_id = $1 AND status = 'open'
-      GROUP BY exception_type, severity
+      GROUP BY type
       ORDER BY count DESC
     `, [companyId])
     
@@ -58,9 +63,9 @@ export async function GET(request: NextRequest) {
     const transactionVolumeResult = await query(`
       SELECT 
         CURRENT_DATE as date,
-        (SELECT COUNT(*) FROM stripe_charges WHERE company_id = $1) as stripe,
+        (SELECT COUNT(*) FROM stripe_balance_txns WHERE company_id = $1) as stripe,
         (SELECT COUNT(*) FROM bank_transactions WHERE company_id = $1) as bank,
-        (SELECT COUNT(*) FROM qbo_transactions WHERE company_id = $1) as quickbooks
+        (SELECT COUNT(*) FROM qbo_objects WHERE company_id = $1) as quickbooks
     `, [companyId])
     
     const transactionVolume = transactionVolumeResult.rows.map((row: any) => ({
@@ -74,12 +79,12 @@ export async function GET(request: NextRequest) {
     // Sync history (last 10 syncs)
     const syncHistoryResult = await query(`
       SELECT 
-        service,
+        job_type as service,
         status,
         started_at as created_at,
-        records_fetched as records_processed,
+        metadata->>'records_processed' as records_processed,
         error_message
-      FROM sync_history 
+      FROM sync_jobs 
       WHERE company_id = $1
       ORDER BY started_at DESC
       LIMIT 10

@@ -1,7 +1,7 @@
 import { query } from './db'
 
 interface TransactionMatch {
-  companyId: number
+  companyId: string
   matchType: string
   confidence: number
   stripeChargeId?: string
@@ -40,13 +40,13 @@ interface MatchCandidate {
 }
 
 export class ReconciliationEngine {
-  private companyId: number
+  private companyId: string
   private readonly MATCH_THRESHOLD = 0.95 // 95% confidence minimum for automatic matching
   private readonly DATE_TOLERANCE_DAYS = 3
   private readonly AMOUNT_TOLERANCE_PERCENT = 0.5 // 0.5% tolerance
   private readonly MIN_AMOUNT_TOLERANCE = 0.01 // $0.01 minimum
 
-  constructor(companyId: number) {
+  constructor(companyId: string) {
     this.companyId = companyId
   }
 
@@ -107,45 +107,45 @@ export class ReconciliationEngine {
   private async getAllTransactions(startDate?: Date, endDate?: Date) {
     const dateFilter = this.buildDateFilter(startDate, endDate)
     
-    const [stripeCharges, stripePayouts, bankTransactions, qboTransactions] = await Promise.all([
+    const [stripeBalanceTxns, stripePayouts, bankTransactions, qboObjects] = await Promise.all([
       query(`
-        SELECT id, amount, currency, fee, net, created_at, payout_id, 
-               description, status, customer_id, imported_at
-        FROM stripe_charges 
+        SELECT id, amount, currency, fee, net, created, payout_id, 
+               description, type, source_id, imported_at
+        FROM stripe_balance_txns 
         WHERE company_id = $1 ${dateFilter}
-        ORDER BY created_at DESC
+        ORDER BY created DESC
       `, [this.companyId]),
       
       query(`
-        SELECT id, amount, currency, arrival_date, status, 
-               created_at, imported_at
+        SELECT id, amount, currency, status, "arrivalDate", "createdAt", 
+               description, "metadataJson"
         FROM stripe_payouts 
-        WHERE company_id = $1 ${dateFilter}
-        ORDER BY arrival_date DESC
+        WHERE "accountId" IN (SELECT id FROM stripe_accounts WHERE company_id = $1) ${dateFilter}
+        ORDER BY "arrivalDate" DESC
       `, [this.companyId]),
       
       query(`
-        SELECT id, plaid_account_id, amount, currency, date, name, merchant_name, 
-               pending, category, imported_at
+        SELECT id, account_id, amount, currency, posted_date, description, category_guess, 
+               imported_at
         FROM bank_transactions 
         WHERE company_id = $1 ${dateFilter}
-        ORDER BY date DESC
+        ORDER BY posted_date DESC
       `, [this.companyId]),
       
       query(`
-        SELECT id, type, amount, currency, txn_date, memo, status, 
-               customer_ref, created_at, imported_at
-        FROM qbo_transactions 
+        SELECT id, obj_type, amount, currency, txn_date, memo, external_ref, 
+               qbo_id, imported_at
+        FROM qbo_objects 
         WHERE company_id = $1 ${dateFilter}
         ORDER BY txn_date DESC
       `, [this.companyId])
     ])
 
     return {
-      stripeCharges: stripeCharges.rows,
+      stripeBalanceTxns: stripeBalanceTxns.rows,
       stripePayouts: stripePayouts.rows,
       bankTransactions: bankTransactions.rows,
-      qboTransactions: qboTransactions.rows
+      qboObjects: qboObjects.rows
     }
   }
 
@@ -162,9 +162,9 @@ export class ReconciliationEngine {
 
       const exactMatch = allTransactions.bankTransactions.find((bankTx: any) => {
         return !processedIds.has(`bank_${bankTx.id}`) &&
-               this.isExactAmountMatch(payout.amount, bankTx.amount) &&
-               this.isExactCurrencyMatch(payout.currency, bankTx.iso_currency_code) &&
-               this.isExactDateMatch(payout.arrival_date, bankTx.date) &&
+               this.isExactAmountMatch(payout.amount_net, bankTx.amount) &&
+               this.isExactCurrencyMatch(payout.currency, bankTx.currency) &&
+               this.isExactDateMatch(payout.arrival_date, bankTx.posted_date) &&
                bankTx.amount > 0 // Only deposits
       })
 
@@ -184,30 +184,30 @@ export class ReconciliationEngine {
       }
     }
 
-    // Exact Stripe Charge to QuickBooks Payment matches
-    for (const charge of allTransactions.stripeCharges) {
-      if (processedIds.has(`charge_${charge.id}`)) continue
+    // Exact Stripe Balance Transaction to QuickBooks Payment matches
+    for (const balanceTxn of allTransactions.stripeBalanceTxns) {
+      if (processedIds.has(`balance_${balanceTxn.id}`)) continue
 
-      const exactMatch = allTransactions.qboTransactions.find((qboTx: any) => {
+      const exactMatch = allTransactions.qboObjects.find((qboTx: any) => {
         return !processedIds.has(`qbo_${qboTx.id}`) &&
-               qboTx.type === 'Payment' &&
-               this.isExactAmountMatch(charge.amount, qboTx.amount) &&
-               this.isExactCurrencyMatch(charge.currency, qboTx.currency) &&
-               this.isExactDateMatch(charge.created_at, qboTx.txn_date)
+               qboTx.obj_type === 'Payment' &&
+               this.isExactAmountMatch(balanceTxn.amount, qboTx.amount) &&
+               this.isExactCurrencyMatch(balanceTxn.currency, qboTx.currency) &&
+               this.isExactDateMatch(balanceTxn.created, qboTx.txn_date)
       })
 
       if (exactMatch) {
         matches.push({
           companyId: this.companyId,
-          matchType: 'stripe_charge_qbo_payment_exact',
+          matchType: 'stripe_balance_qbo_payment_exact',
           confidence: 1.0,
-          stripeChargeId: charge.id,
+          stripeChargeId: balanceTxn.id,
           qboTransactionId: exactMatch.id,
           matchedAt: new Date(),
           notes: `Exact match: Amount, currency, and date identical`,
           validationChecks: ['exact_amount', 'exact_currency', 'exact_date', 'payment_type']
         })
-        processedIds.add(`charge_${charge.id}`)
+        processedIds.add(`balance_${balanceTxn.id}`)
         processedIds.add(`qbo_${exactMatch.id}`)
       }
     }
@@ -250,14 +250,14 @@ export class ReconciliationEngine {
       }
     }
 
-    // Fuzzy Stripe Charge to QuickBooks matches
-    for (const charge of allTransactions.stripeCharges) {
-      if (processedIds.has(`charge_${charge.id}`)) continue
+    // Fuzzy Stripe Balance Transaction to QuickBooks matches
+    for (const balanceTxn of allTransactions.stripeBalanceTxns) {
+      if (processedIds.has(`balance_${balanceTxn.id}`)) continue
 
-      const candidates = allTransactions.qboTransactions
+      const candidates = allTransactions.qboObjects
         .filter((qboTx: any) => !processedIds.has(`qbo_${qboTx.id}`) && 
-                ['Payment', 'SalesReceipt', 'Invoice'].includes(qboTx.type))
-        .map((qboTx: any) => this.calculateMatchConfidence(charge, qboTx, 'charge_qbo'))
+                ['Payment', 'SalesReceipt', 'Invoice'].includes(qboTx.obj_type))
+        .map((qboTx: any) => this.calculateMatchConfidence(balanceTxn, qboTx, 'balance_qbo'))
         .filter((candidate: any) => candidate.confidence >= 0.95)
         .sort((a: any, b: any) => b.confidence - a.confidence)
 
@@ -265,15 +265,15 @@ export class ReconciliationEngine {
         const bestMatch = candidates[0]
         matches.push({
           companyId: this.companyId,
-          matchType: `stripe_charge_qbo_${bestMatch.transaction.type.toLowerCase()}_fuzzy`,
+          matchType: `stripe_balance_qbo_${bestMatch.transaction.obj_type.toLowerCase()}_fuzzy`,
           confidence: bestMatch.confidence,
-          stripeChargeId: charge.id,
+          stripeChargeId: balanceTxn.id,
           qboTransactionId: bestMatch.transaction.id,
           matchedAt: new Date(),
           notes: `Fuzzy match: ${bestMatch.reasons.join(', ')}`,
           validationChecks: bestMatch.validationChecks
         })
-        processedIds.add(`charge_${charge.id}`)
+        processedIds.add(`balance_${balanceTxn.id}`)
         processedIds.add(`qbo_${bestMatch.transaction.id}`)
       }
     }
@@ -293,7 +293,7 @@ export class ReconciliationEngine {
     for (const bankTx of allTransactions.bankTransactions) {
       if (processedIds.has(`bank_${bankTx.id}`)) continue
 
-      const candidates = allTransactions.qboTransactions
+      const candidates = allTransactions.qboObjects
         .filter((qboTx: any) => !processedIds.has(`qbo_${qboTx.id}`))
         .map((qboTx: any) => this.calculateAdvancedMatchConfidence(bankTx, qboTx))
         .filter((candidate: any) => candidate.confidence >= 0.90 && candidate.confidence < 0.95)
@@ -303,7 +303,7 @@ export class ReconciliationEngine {
         const bestMatch = candidates[0]
         matches.push({
           companyId: this.companyId,
-          matchType: `bank_qbo_${bestMatch.transaction.type.toLowerCase()}_advanced`,
+          matchType: `bank_qbo_${bestMatch.transaction.obj_type.toLowerCase()}_advanced`,
           confidence: bestMatch.confidence,
           bankTransactionId: bankTx.id,
           qboTransactionId: bestMatch.transaction.id,
@@ -429,10 +429,10 @@ export class ReconciliationEngine {
     try {
       // Check if transactions still exist and haven't been matched
       const validations = await Promise.all([
-        this.checkTransactionExists(match.stripeChargeId, 'stripe_charges'),
+        this.checkTransactionExists(match.stripeChargeId, 'stripe_balance_txns'),
         this.checkTransactionExists(match.stripePayoutId, 'stripe_payouts'),
         this.checkTransactionExists(match.bankTransactionId, 'bank_transactions'),
-        this.checkTransactionExists(match.qboTransactionId, 'qbo_transactions')
+        this.checkTransactionExists(match.qboTransactionId, 'qbo_objects')
       ])
 
       return validations.every(v => v)
@@ -557,7 +557,7 @@ export class ReconciliationEngine {
         exceptions.push({
           type: 'stripe_payout',
           id: payout.id,
-          description: `Unmatched Stripe payout: $${payout.amount} ${payout.currency} on ${payout.arrival_date}`,
+          description: `Unmatched Stripe payout: $${payout.amount_net} ${payout.currency} on ${payout.arrival_date}`,
           suggestedAction: 'Check if corresponding bank deposit exists or create manual deposit entry',
           severity: 'critical' as const,
           transactionDetails: payout
@@ -565,24 +565,24 @@ export class ReconciliationEngine {
       }
     })
 
-    // Check for unmatched Stripe charges (HIGH)
-    for (const charge of allTransactions.stripeCharges) {
-      if (!matchedIds.has(`charge_${charge.id}`)) {
+    // Check for unmatched Stripe balance transactions (HIGH)
+    for (const balanceTxn of allTransactions.stripeBalanceTxns) {
+      if (!matchedIds.has(`balance_${balanceTxn.id}`)) {
         const exception = {
-          type: 'stripe_charge',
-          id: charge.id,
-          description: `Unmatched Stripe charge: $${charge.amount} ${charge.currency} on ${charge.created_at}`,
+          type: 'stripe_balance_txn',
+          id: balanceTxn.id,
+          description: `Unmatched Stripe balance transaction: $${balanceTxn.amount} ${balanceTxn.currency} on ${balanceTxn.created}`,
           suggestedAction: 'Create corresponding invoice or sales receipt in QuickBooks',
           severity: 'high' as const,
-          transactionDetails: charge
+          transactionDetails: balanceTxn
         }
         exceptions.push(exception)
         
         // Store in database
         await query(`
-          INSERT INTO exceptions (company_id, exception_type, description, severity, related_stripe_id, suggested_action, status, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-        `, [this.companyId, exception.type, exception.description, exception.severity, charge.id, exception.suggestedAction, 'open'])
+          INSERT INTO exceptions (company_id, type, evidence_jsonb, proposed_action, confidence, status, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+        `, [this.companyId, exception.type, JSON.stringify({ description: exception.description, transactionDetails: balanceTxn }), exception.suggestedAction, 0.8, 'open'])
       }
     }
 
@@ -593,7 +593,7 @@ export class ReconciliationEngine {
         exceptions.push({
           type: 'bank_transaction',
           id: bankTx.id,
-          description: `Unmatched bank ${transactionType}: $${Math.abs(bankTx.amount)} ${bankTx.iso_currency_code} on ${bankTx.date}`,
+          description: `Unmatched bank ${transactionType}: $${Math.abs(bankTx.amount)} ${bankTx.currency} on ${bankTx.posted_date}`,
           suggestedAction: transactionType === 'deposit' ? 'Create deposit entry in QuickBooks' : 'Review withdrawal - may be expense or transfer',
           severity: 'medium' as const,
           transactionDetails: bankTx
@@ -601,14 +601,14 @@ export class ReconciliationEngine {
       }
     })
 
-    // Check for unmatched QuickBooks transactions (LOW)
-    allTransactions.qboTransactions.forEach((qboTx: any) => {
+    // Check for unmatched QuickBooks objects (LOW)
+    allTransactions.qboObjects.forEach((qboTx: any) => {
       if (!matchedIds.has(`qbo_${qboTx.id}`)) {
         exceptions.push({
-          type: 'qbo_transaction',
+          type: 'qbo_object',
           id: qboTx.id,
-          description: `Unmatched QuickBooks ${qboTx.type}: $${qboTx.amount} ${qboTx.currency} on ${qboTx.txn_date}`,
-          suggestedAction: `Review ${qboTx.type} - may need to match with bank or Stripe transaction`,
+          description: `Unmatched QuickBooks ${qboTx.obj_type}: $${qboTx.amount} ${qboTx.currency} on ${qboTx.txn_date}`,
+          suggestedAction: `Review ${qboTx.obj_type} - may need to match with bank or Stripe transaction`,
           severity: 'low' as const,
           transactionDetails: qboTx
         })
@@ -620,10 +620,10 @@ export class ReconciliationEngine {
   }
 
   private generateSummary(allTransactions: any, matches: TransactionMatch[], exceptions: ReconciliationResult['exceptions'], processingTime: number) {
-    const totalTransactions = allTransactions.stripeCharges.length + 
+    const totalTransactions = allTransactions.stripeBalanceTxns.length + 
                              allTransactions.stripePayouts.length + 
                              allTransactions.bankTransactions.length + 
-                             allTransactions.qboTransactions.length
+                             allTransactions.qboObjects.length
 
     const confidenceDistribution = {
       '100%': matches.filter(m => m.confidence === 1.0).length,
@@ -644,13 +644,18 @@ export class ReconciliationEngine {
   private async storeValidatedMatches(matches: TransactionMatch[]): Promise<void> {
     for (const match of matches) {
       await query(`
-        INSERT INTO transaction_matches (company_id, match_date, stripe_charge_id, stripe_payout_id, 
-                                       bank_transaction_id, qbo_transaction_id, match_type, confidence, notes)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO matches (company_id, left_ref, right_ref, left_type, right_type, 
+                           strategy, confidence, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
         ON CONFLICT DO NOTHING
       `, [
-        match.companyId, match.matchedAt, match.stripeChargeId, match.stripePayoutId,
-        match.bankTransactionId, match.qboTransactionId, match.matchType, match.confidence, match.notes
+        match.companyId, 
+        match.stripeChargeId || match.stripePayoutId || match.bankTransactionId,
+        match.qboTransactionId || match.bankTransactionId,
+        match.stripeChargeId ? 'balance' : match.stripePayoutId ? 'payout' : 'bank',
+        match.qboTransactionId ? 'qbo' : 'bank',
+        match.matchType, 
+        match.confidence
       ])
     }
   }
@@ -658,13 +663,16 @@ export class ReconciliationEngine {
   private async storeExceptions(exceptions: ReconciliationResult['exceptions']): Promise<void> {
     for (const exception of exceptions) {
       await query(`
-        INSERT INTO exceptions (company_id, exception_type, description, 
-                               suggested_action, severity, status, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO exceptions (company_id, type, evidence_jsonb, 
+                               proposed_action, confidence, status, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
         ON CONFLICT DO NOTHING
       `, [
-        this.companyId, exception.type, exception.description,
-        exception.suggestedAction, exception.severity, 'open', new Date()
+        this.companyId, exception.type, JSON.stringify({ 
+          description: exception.description, 
+          transactionDetails: exception.transactionDetails 
+        }),
+        exception.suggestedAction, 0.8, 'open'
       ])
     }
   }

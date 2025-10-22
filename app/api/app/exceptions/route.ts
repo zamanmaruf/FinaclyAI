@@ -16,8 +16,16 @@ export async function GET(request: NextRequest) {
     // Get all exceptions for the company
     const exceptionsResult = await query(`
       SELECT 
-        id, exception_type, severity, description, suggested_action,
-        related_stripe_id, related_bank_id, related_qbo_id,
+        id, type as exception_type, 
+        CASE 
+          WHEN type LIKE '%PAYOUT_MISSING%' THEN 'critical'
+          WHEN type LIKE '%STRIPE_CHARGE%' THEN 'high'
+          WHEN type LIKE '%BANK_TRANSACTION%' THEN 'medium'
+          ELSE 'low'
+        END as severity,
+        evidence_jsonb->>'description' as description,
+        proposed_action as suggested_action,
+        entity_refs,
         status, created_at, resolved_at
       FROM exceptions 
       WHERE company_id = $1 

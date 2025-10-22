@@ -1,0 +1,336 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: finacly_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Setup test database
+      run: |
+        npm run init-db
+        npm run test:setup-db
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finacly_test
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        REDIS_URL: redis://localhost:6379
+    
+    - name: Run linting
+      run: npm run lint
+    
+    - name: Run type checking
+      run: npx tsc --noEmit
+    
+    - name: Run unit tests
+      run: npm run test:unit
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+    
+    - name: Run integration tests
+      run: npm run test:integration
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+    
+    - name: Run end-to-end tests
+      run: npm run test:e2e
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+    
+    - name: Run all tests with coverage
+      run: npm run test:coverage
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+    
+    - name: Check coverage thresholds
+      run: |
+        if [ $(cat coverage/coverage-summary.json | jq '.total.lines.pct') -lt 70 ]; then
+          echo "Coverage below 70% threshold"
+          exit 1
+        fi
+        if [ $(cat coverage/coverage-summary.json | jq '.total.branches.pct') -lt 70 ]; then
+          echo "Branch coverage below 70% threshold"
+          exit 1
+        fi
+        if [ $(cat coverage/coverage-summary.json | jq '.total.functions.pct') -lt 70 ]; then
+          echo "Function coverage below 70% threshold"
+          exit 1
+        fi
+        if [ $(cat coverage/coverage-summary.json | jq '.total.statements.pct') -lt 70 ]; then
+          echo "Statement coverage below 70% threshold"
+          exit 1
+        fi
+    
+    - name: Performance tests
+      run: npm run test:performance
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+    
+    - name: Security audit
+      run: npm audit --audit-level moderate
+    
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+    
+    - name: Test build artifacts
+      run: |
+        if [ ! -d ".next" ]; then
+          echo "Build failed - .next directory not found"
+          exit 1
+        fi
+        if [ ! -f ".next/static/chunks/pages/_app.js" ]; then
+          echo "Build failed - main app chunk not found"
+          exit 1
+        fi
+
+  test-scenarios:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: finacly_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    strategy:
+      matrix:
+        scenario: [
+          'happy-path',
+          'ambiguous-match', 
+          'cash-deposit',
+          'internal-transfer',
+          'multi-currency',
+          'token-expiry',
+          'network-error',
+          'idempotency'
+        ]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Setup test database
+      run: |
+        npm run init-db
+        npm run test:setup-db
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finacly_test
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+    
+    - name: Run scenario test
+      run: npm run test:e2e -- --testNamePattern="${{ matrix.scenario }}"
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+        TEST_SCENARIO: ${{ matrix.scenario }}
+
+  performance:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: finacly_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Setup test database
+      run: |
+        npm run init-db
+        npm run test:setup-db
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/finacly_test
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+    
+    - name: Run performance tests
+      run: npm run test:performance
+      env:
+        DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/finacly_test
+        NODE_ENV: test
+    
+    - name: Check performance thresholds
+      run: |
+        # Check ingestion performance (10k charges in < 5 minutes)
+        if [ $(cat performance-results/ingestion.json | jq '.duration') -gt 300000 ]; then
+          echo "Ingestion performance below threshold"
+          exit 1
+        fi
+        
+        # Check matching performance (>= 2000 matches/minute)
+        if [ $(cat performance-results/matching.json | jq '.throughput') -lt 2000 ]; then
+          echo "Matching performance below threshold"
+          exit 1
+        fi
+        
+        # Check API response times
+        if [ $(cat performance-results/api.json | jq '.dashboard_stats') -gt 200 ]; then
+          echo "Dashboard stats API too slow"
+          exit 1
+        fi
+        if [ $(cat performance-results/api.json | jq '.exceptions_list') -gt 500 ]; then
+          echo "Exceptions list API too slow"
+          exit 1
+        fi
+        if [ $(cat performance-results/api.json | jq '.action_fix') -gt 1000 ]; then
+          echo "Action fix API too slow"
+          exit 1
+        fi
+
+  security:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run security audit
+      run: npm audit --audit-level high
+    
+    - name: Check for known vulnerabilities
+      run: |
+        if npm audit --audit-level high --json | jq '.vulnerabilities | length' | grep -q '[1-9]'; then
+          echo "High severity vulnerabilities found"
+          exit 1
+        fi
+    
+    - name: Check for outdated dependencies
+      run: |
+        if npm outdated | grep -q 'WANT'; then
+          echo "Outdated dependencies found"
+          npm outdated
+        fi
+    
+    - name: Check for license issues
+      run: |
+        npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Unlicense'
+        if [ $? -ne 0 ]; then
+          echo "License issues found"
+          exit 1
+        fi
+
+  deploy-preview:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+    
+    - name: Deploy to Vercel Preview
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.ORG_ID }}
+        vercel-project-id: ${{ secrets.PROJECT_ID }}
+        working-directory: ./
+        scope: ${{ secrets.VERCEL_SCOPE }}

@@ -2,10 +2,12 @@ import nodemailer from 'nodemailer'
 
 // Create transporter with performance optimizations
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
   },
   // Performance optimizations
   pool: true, // Use connection pooling
@@ -164,8 +166,8 @@ export async function sendSignupNotificationEmail({
             
             <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="color: #FFB800; margin-top: 0;">Tech Stack</h3>
-              <p><strong>Payment Processors:</strong> ${stackPsp.join(', ')}</p>
-              <p><strong>Accounting Software:</strong> ${stackLedger.join(', ')}</p>
+              <p><strong>Payment Processors:</strong> ${stackPsp ? stackPsp.join(', ') : 'Not specified'}</p>
+              <p><strong>Accounting Software:</strong> ${stackLedger ? stackLedger.join(', ') : 'Not specified'}</p>
             </div>
             
             <div style="text-align: center; margin: 30px 0;">

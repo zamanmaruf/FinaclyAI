@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Generate authorization URL
     const authUri = oauthClient.authorizeUri({
       scope: [OAuthClient.scopes.Accounting],
-      state: '1' // Test company ID
+      state: Date.now().toString() // Use timestamp for unique state
     })
 
     return NextResponse.json({
