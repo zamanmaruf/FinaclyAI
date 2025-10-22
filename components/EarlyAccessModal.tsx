@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { X, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { analytics } from '@/lib/analytics'
+// import { analytics } from '@/lib/analytics'
 
 interface EarlyAccessFormData {
   email: string
@@ -45,7 +45,7 @@ export default function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalPr
     setErrorMessage('')
 
     try {
-      analytics.startForm('early_access')
+      // analytics.startForm('early_access')
       
       const response = await fetch('/api/lead', {
         method: 'POST',
@@ -59,17 +59,17 @@ export default function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalPr
 
       if (response.ok) {
         setSubmitStatus('success')
-        analytics.submitLeadSuccess(data.role, data.companySize)
+        // analytics.submitLeadSuccess(data.role, data.companySize)
         reset()
       } else {
         setSubmitStatus('error')
         setErrorMessage(result.error || 'Something went wrong. Please try again.')
-        analytics.submitLeadError(result.error || 'Unknown error')
+        // analytics.submitLeadError(result.error || 'Unknown error')
       }
     } catch (error) {
       setSubmitStatus('error')
       setErrorMessage('Network error. Please check your connection and try again.')
-      analytics.submitLeadError('Network error')
+      // analytics.submitLeadError('Network error')
     } finally {
       setIsSubmitting(false)
     }
@@ -77,7 +77,7 @@ export default function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalPr
 
   const handleClose = () => {
     if (submitStatus !== 'success') {
-      analytics.abandonForm('early_access', 1)
+      // analytics.abandonForm('early_access', 1)
     }
     onClose()
   }

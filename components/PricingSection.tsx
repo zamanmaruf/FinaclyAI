@@ -1,7 +1,7 @@
 'use client'
 
 import { Check, Star } from 'lucide-react'
-import { analytics } from '@/lib/analytics'
+// import { analytics } from '@/lib/analytics'
 import { useState } from 'react'
 import EarlyAccessModal from './EarlyAccessModal'
 
@@ -70,7 +70,7 @@ export default function PricingSection() {
   ]
 
   const handleCTAClick = (planName: string) => {
-    analytics.clickPricingCTA(planName)
+    // analytics.clickPricingCTA(planName)
     if (planName === 'Scale') {
       // For Scale plan, open Calendly or contact form
       window.open('https://calendly.com/finacly-ai-inc/30min', '_blank')

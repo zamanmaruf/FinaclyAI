@@ -1,7 +1,7 @@
 'use client'
 
 import { Users, BarChart3, FileText, Zap, ArrowRight } from 'lucide-react'
-import { analytics } from '@/lib/analytics'
+// import { analytics } from '@/lib/analytics'
 
 export default function AccountantSection() {
   const features = [
@@ -28,7 +28,8 @@ export default function AccountantSection() {
   ]
 
   const handleAccountantProgramClick = () => {
-    analytics.clickAccountantProgram()
+    // analytics.clickAccountantProgram()
+    console.log('Accountant program clicked')
   }
 
   return (

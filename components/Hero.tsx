@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { ArrowRight, Calendar, CheckCircle, Zap, Shield, TrendingUp } from 'lucide-react'
-import { analytics } from '@/lib/analytics'
+// import { analytics } from '@/lib/analytics'
 import EarlyAccessModal from './EarlyAccessModal'
 import { CalendlyButton } from './CalendlyEmbed'
 
@@ -11,12 +11,12 @@ export default function Hero() {
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleGetEarlyAccess = () => {
-    analytics.clickGetEarlyAccess()
+    // analytics.clickGetEarlyAccess()
     setIsModalOpen(true)
   }
 
   const handleBookFitCall = () => {
-    analytics.clickBookFitCall()
+    // analytics.clickBookFitCall()
   }
 
   return (

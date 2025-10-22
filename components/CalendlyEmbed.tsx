@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { analytics } from '@/lib/analytics'
+// import { analytics } from '@/lib/analytics'
 
 interface CalendlyEmbedProps {
   url: string
@@ -18,7 +18,7 @@ export default function CalendlyEmbed({ url, className = '' }: CalendlyEmbedProp
     
     // Track when Calendly loads
     script.onload = () => {
-      analytics.clickBookFitCall()
+      // analytics.clickBookFitCall()
     }
     
     document.head.appendChild(script)
@@ -33,7 +33,7 @@ export default function CalendlyEmbed({ url, className = '' }: CalendlyEmbedProp
   }, [])
 
   const handleCalendlyClick = () => {
-    analytics.clickBookFitCall()
+    // analytics.clickBookFitCall()
   }
 
   return (
@@ -56,7 +56,7 @@ export function CalendlyButton({ url, children, className = '' }: {
   className?: string 
 }) {
   const handleClick = () => {
-    analytics.clickBookFitCall()
+    // analytics.clickBookFitCall()
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 

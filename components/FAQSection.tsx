@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
-import { analytics } from '@/lib/analytics'
+// import { analytics } from '@/lib/analytics'
 
 interface FAQItem {
   question: string
@@ -53,7 +53,7 @@ export default function FAQSection() {
       setOpenItems(openItems.filter(i => i !== index))
     } else {
       setOpenItems([...openItems, index])
-      analytics.openFAQ(faqs[index].question)
+      // analytics.openFAQ(faqs[index].question)
     }
   }
 
